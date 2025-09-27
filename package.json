@@ -1,0 +1,30 @@
+{
+  "name": "localplus-api",
+  "version": "1.0.0",
+  "description": "LocalPlus API - Shared API services for all LocalPlus applications",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'API routes - no build needed'",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.50.3",
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "typescript": "^5.2.2",
+    "vercel": "^44.5.0"
+  },
+  "keywords": [
+    "localplus",
+    "api",
+    "vercel",
+    "serverless"
+  ],
+  "author": "LDP - Local Digital Publication",
+  "license": "MIT"
+}
