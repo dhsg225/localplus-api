@@ -44,3 +44,4 @@ SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 npm install
 npm run dev
 ```
+# Test deployment
