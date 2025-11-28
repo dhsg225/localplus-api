@@ -1,0 +1,164 @@
+// [2025-01-XX] - Event Engine Phase 0 + Phase 1: Individual event operations
+// Phase 0: GET, PUT, DELETE endpoints
+// Phase 1: RBAC authorization checks
+const { createClient } = require('@supabase/supabase-js');
+const { authorizeRequest } = require('../utils/rbac');
+
+const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.supabase.co';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impva25wcmFoaHFkaHZkaHptdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTI3MTAsImV4cCI6MjA2NTIyODcxMH0.YYkEkYFWgd_4-OtgG47xj6b5MX_fu7zNQxrW9ymR8Xk';
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+module.exports = async (req, res) => {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  // Extract ID from URL path
+  const id = req.query.id;
+
+  if (!id) {
+    return res.status(400).json({ error: 'Event ID is required' });
+  }
+
+  // GET /api/events/[id] - Get specific event
+  if (req.method === 'GET') {
+    try {
+      // Phase 1: Check authorization (view access)
+      const { authorized, user, error: authError } = await authorizeRequest(req, id, 'view');
+
+      // Allow unauthenticated access to published events
+      if (!authorized && !user) {
+        // Check if event is published
+        const { data: event } = await supabase
+          .from('events')
+          .select('*')
+          .eq('id', id)
+          .eq('status', 'published')
+          .single();
+
+        if (event) {
+          return res.status(200).json({
+            success: true,
+            data: event
+          });
+        }
+
+        return res.status(401).json({ error: authError || 'Unauthorized' });
+      }
+
+      if (!authorized) {
+        return res.status(403).json({ error: authError || 'Insufficient permissions' });
+      }
+
+      const { data: event, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return res.status(404).json({ error: 'Event not found' });
+        }
+        console.error('Error fetching event:', error);
+        return res.status(500).json({ error: 'Failed to fetch event' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: event
+      });
+
+    } catch (error) {
+      console.error('Event GET error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  // PUT /api/events/[id] - Update event
+  if (req.method === 'PUT') {
+    try {
+      // Phase 1: Require edit permission
+      const { authorized, error: authError } = await authorizeRequest(req, id, 'edit');
+
+      if (!authorized) {
+        return res.status(403).json({ error: authError || 'Insufficient permissions to edit event' });
+      }
+
+      const updateData = req.body;
+
+      // Validate time range if both times are provided
+      if (updateData.start_time && updateData.end_time) {
+        if (new Date(updateData.end_time) <= new Date(updateData.start_time)) {
+          return res.status(400).json({ 
+            error: 'end_time must be after start_time' 
+          });
+        }
+      }
+
+      // Don't allow changing created_by
+      delete updateData.created_by;
+
+      const { data: event, error } = await supabase
+        .from('events')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating event:', error);
+        return res.status(500).json({ error: 'Failed to update event' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: event
+      });
+
+    } catch (error) {
+      console.error('Event PUT error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  // DELETE /api/events/[id] - Delete event
+  if (req.method === 'DELETE') {
+    try {
+      // Phase 1: Require owner permission
+      const { authorized, error: authError } = await authorizeRequest(req, id, 'delete');
+
+      if (!authorized) {
+        return res.status(403).json({ error: authError || 'Only event owners can delete events' });
+      }
+
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting event:', error);
+        return res.status(500).json({ error: 'Failed to delete event' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Event deleted successfully'
+      });
+
+    } catch (error) {
+      console.error('Event DELETE error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+};
+
