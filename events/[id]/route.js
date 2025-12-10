@@ -1,8 +1,10 @@
 // [2025-01-XX] - Event Engine Phase 0 + Phase 1: Individual event operations
 // Phase 0: GET, PUT, DELETE endpoints
 // Phase 1: RBAC authorization checks
+// [2025-12-05] - Phase 2: Recurrence support
 const { createClient } = require('@supabase/supabase-js');
 const { authorizeRequest } = require('../utils/rbac');
+const cache = require('../utils/cache');
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impva25wcmFoaHFkaHZkaHptdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTI3MTAsImV4cCI6MjA2NTIyODcxMH0.YYkEkYFWgd_4-OtgG47xj6b5MX_fu7zNQxrW9ymR8Xk';
@@ -70,6 +72,19 @@ module.exports = async (req, res) => {
         return res.status(500).json({ error: 'Failed to fetch event' });
       }
 
+      // [2025-12-05] - Fetch recurrence rule if event is recurring
+      if (event && event.is_recurring) {
+        const { data: rule, error: ruleError } = await supabase
+          .from('recurrence_rules')
+          .select('*')
+          .eq('event_id', id)
+          .single();
+
+        if (rule && !ruleError) {
+          event.recurrence_rule = rule;
+        }
+      }
+
       return res.status(200).json({
         success: true,
         data: event
@@ -93,6 +108,10 @@ module.exports = async (req, res) => {
 
       const updateData = req.body;
 
+      // [2025-12-05] - Extract recurrence_rules if present
+      const recurrenceRules = updateData.recurrence_rules;
+      delete updateData.recurrence_rules; // Remove from event data
+
       // Validate time range if both times are provided
       if (updateData.start_time && updateData.end_time) {
         if (new Date(updateData.end_time) <= new Date(updateData.start_time)) {
@@ -105,6 +124,11 @@ module.exports = async (req, res) => {
       // Don't allow changing created_by
       delete updateData.created_by;
 
+      // [2025-12-05] - Set is_recurring flag if recurrence_rules provided
+      if (recurrenceRules !== undefined) {
+        updateData.is_recurring = recurrenceRules ? true : false;
+      }
+
       const { data: event, error } = await supabase
         .from('events')
         .update(updateData)
@@ -115,6 +139,64 @@ module.exports = async (req, res) => {
       if (error) {
         console.error('Error updating event:', error);
         return res.status(500).json({ error: 'Failed to update event' });
+      }
+
+      // [2025-12-05] - Update or create recurrence rule if provided
+      if (recurrenceRules !== undefined) {
+        if (recurrenceRules && event.is_recurring) {
+          // Check if rule exists
+          const { data: existingRule } = await supabase
+            .from('recurrence_rules')
+            .select('id')
+            .eq('event_id', id)
+            .single();
+
+          const ruleData = {
+            event_id: id,
+            frequency: recurrenceRules.frequency,
+            interval: recurrenceRules.interval || 1,
+            byweekday: recurrenceRules.byweekday || null,
+            bymonthday: recurrenceRules.bymonthday || null,
+            bysetpos: recurrenceRules.bysetpos || null,
+            until: recurrenceRules.until || null,
+            count: recurrenceRules.count || null,
+            exceptions: recurrenceRules.exceptions || [],
+            additional_dates: recurrenceRules.additional_dates || [],
+            timezone: recurrenceRules.timezone || event.timezone_id || 'UTC'
+          };
+
+          if (existingRule) {
+            // Update existing rule
+            const { error: ruleError } = await supabase
+              .from('recurrence_rules')
+              .update(ruleData)
+              .eq('event_id', id);
+
+            if (ruleError) {
+              console.error('Error updating recurrence rule:', ruleError);
+            } else {
+              cache.clearEventCache(id);
+            }
+          } else {
+            // Create new rule
+            const { error: ruleError } = await supabase
+              .from('recurrence_rules')
+              .insert([ruleData]);
+
+            if (ruleError) {
+              console.error('Error creating recurrence rule:', ruleError);
+            } else {
+              cache.clearEventCache(id);
+            }
+          }
+        } else if (!recurrenceRules && event.is_recurring === false) {
+          // Delete recurrence rule if event is no longer recurring
+          await supabase
+            .from('recurrence_rules')
+            .delete()
+            .eq('event_id', id);
+          cache.clearEventCache(id);
+        }
       }
 
       return res.status(200).json({

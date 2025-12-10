@@ -27,6 +27,24 @@ async function getAuthenticatedUser(authHeader) {
 }
 
 /**
+ * Check if user has 'events_superuser' role
+ * @param {object} supabase - Supabase client instance
+ * @param {string} userId - User ID
+ * @returns {Promise<boolean>}
+ */
+async function isEventsSuperuser(supabase, userId) {
+  const { data: userRoles, error } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('role', 'events_superuser')
+    .eq('is_active', true)
+    .limit(1);
+
+  return !error && userRoles && userRoles.length > 0;
+}
+
+/**
  * Check if user has permission to access an event
  * @param {object} supabase - Supabase client instance
  * @param {string} userId - User ID
@@ -35,6 +53,12 @@ async function getAuthenticatedUser(authHeader) {
  * @returns {Promise<{hasAccess: boolean, role: string|null}>}
  */
 async function checkEventPermission(supabase, userId, eventId, requiredRoles = []) {
+  // [2025-01-XX] - Events superuser has full access to all events
+  const isSuperuser = await isEventsSuperuser(supabase, userId);
+  if (isSuperuser) {
+    return { hasAccess: true, role: 'events_superuser' };
+  }
+
   // Check if user is the event creator
   const { data: event } = await supabase
     .from('events')
@@ -140,13 +164,19 @@ async function authorizeRequest(req, eventId = null, action = 'view') {
     return { authorized: false, user: null, error: authError || 'Unauthorized' };
   }
 
+  // [2025-01-XX] - Events superuser bypasses all permission checks
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const isSuperuser = await isEventsSuperuser(supabase, user.id);
+  if (isSuperuser) {
+    return { authorized: true, user, error: null };
+  }
+
   // If no eventId, just check authentication
   if (!eventId) {
     return { authorized: true, user, error: null };
   }
 
   // Check event-specific permissions
-  const supabase = createClient(supabaseUrl, supabaseKey);
   const hasAccess = await canPerformAction(supabase, user.id, eventId, action);
 
   if (!hasAccess) {
@@ -160,6 +190,7 @@ module.exports = {
   getAuthenticatedUser,
   checkEventPermission,
   canPerformAction,
-  authorizeRequest
+  authorizeRequest,
+  isEventsSuperuser
 };
 
