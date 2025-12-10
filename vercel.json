@@ -3,43 +3,17 @@
   "builds": [
     { "src": "auth/route.js", "use": "@vercel/node" },
     { "src": "auth/register/route.js", "use": "@vercel/node" },
-    { "src": "bookings/route.js", "use": "@vercel/node" },
-    { "src": "bookings/[id]/route.js", "use": "@vercel/node" },
-    { "src": "restaurants/route.js", "use": "@vercel/node" },
-    { "src": "restaurants/search/route.js", "use": "@vercel/node" },
-    { "src": "businesses/route.js", "use": "@vercel/node" },
-    { "src": "notifications/route.js", "use": "@vercel/node" },
     { "src": "events/route.js", "use": "@vercel/node" },
     { "src": "events/all/route.js", "use": "@vercel/node" },
     { "src": "events/[id]/route.js", "use": "@vercel/node" },
-    { "src": "events/[id]/participants/route.js", "use": "@vercel/node" },
-    { "src": "organizers/route.js", "use": "@vercel/node" },
-    { "src": "locations/route.js", "use": "@vercel/node" },
-    { "src": "activities/route.js", "use": "@vercel/node" },
-    { "src": "attractions/route.js", "use": "@vercel/node" },
-    { "src": "news/[city].js", "use": "@vercel/node" },
-    { "src": "news/[city]/categories.js", "use": "@vercel/node" }
+    { "src": "events/[id]/participants/route.js", "use": "@vercel/node" }
   ],
   "rewrites": [
     { "source": "/api/auth", "destination": "/auth/route.js" },
     { "source": "/api/auth/register", "destination": "/auth/register/route.js" },
-    { "source": "/api/bookings", "destination": "/bookings/route.js" },
-    { "source": "/api/bookings/:id", "destination": "/bookings/[id]/route.js" },
-    { "source": "/api/bookings/:id/confirm", "destination": "/bookings/[id]/route.js" },
-    { "source": "/api/bookings/:id/cancel", "destination": "/bookings/[id]/route.js" },
-    { "source": "/api/restaurants", "destination": "/restaurants/route.js" },
-    { "source": "/api/restaurants/search", "destination": "/restaurants/search/route.js" },
-    { "source": "/api/businesses", "destination": "/businesses/route.js" },
-    { "source": "/api/notifications", "destination": "/notifications/route.js" },
     { "source": "/api/events", "destination": "/events/route.js" },
     { "source": "/api/events/all", "destination": "/events/all/route.js" },
     { "source": "/api/events/:id", "destination": "/events/[id]/route.js" },
-    { "source": "/api/events/:id/participants", "destination": "/events/[id]/participants/route.js" },
-    { "source": "/api/organizers", "destination": "/organizers/route.js" },
-    { "source": "/api/locations", "destination": "/locations/route.js" },
-    { "source": "/api/activities", "destination": "/activities/route.js" },
-    { "source": "/api/attractions", "destination": "/attractions/route.js" },
-    { "source": "/api/news/:city", "destination": "/news/[city].js" },
-    { "source": "/api/news/:city/categories", "destination": "/news/[city]/categories.js" }
+    { "source": "/api/events/:id/participants", "destination": "/events/[id]/participants/route.js" }
   ]
 }
