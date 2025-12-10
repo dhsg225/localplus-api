@@ -100,12 +100,19 @@ module.exports = async (req, res) => {
   const supabaseClient = await getSupabaseClient(authToken);
 
   // [2025-01-XX] - Verify super admin OR events_superuser
+  console.log('[Superuser API] Checking access for user:', user.id);
   const userIsSuperAdmin = await isSuperAdmin(supabaseClient, user.id);
   const userIsEventsSuperuser = await isEventsSuperuser(supabaseClient, user.id);
   
+  console.log('[Superuser API] userIsSuperAdmin:', userIsSuperAdmin);
+  console.log('[Superuser API] userIsEventsSuperuser:', userIsEventsSuperuser);
+  
   if (!userIsSuperAdmin && !userIsEventsSuperuser) {
+    console.log('[Superuser API] Access denied - neither super_admin nor events_superuser');
     return res.status(403).json({ error: 'Super admin access required' });
   }
+  
+  console.log('[Superuser API] Access granted');
 
   // GET /api/events/all - List all events with filters, pagination, sorting
   if (req.method === 'GET') {

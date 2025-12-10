@@ -33,15 +33,29 @@ async function getAuthenticatedUser(authHeader) {
  * @returns {Promise<boolean>}
  */
 async function isEventsSuperuser(supabase, userId) {
-  const { data: userRoles, error } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', userId)
-    .eq('role', 'events_superuser')
-    .eq('is_active', true)
-    .limit(1);
+  try {
+    const { data: userRoles, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('role', 'events_superuser')
+      .eq('is_active', true)
+      .limit(1);
 
-  return !error && userRoles && userRoles.length > 0;
+    if (error) {
+      console.error('[RBAC] Error checking events_superuser:', error);
+      console.error('[RBAC] Error code:', error.code);
+      console.error('[RBAC] Error message:', error.message);
+      return false;
+    }
+
+    const isSuperuser = !error && userRoles && userRoles.length > 0;
+    console.log('[RBAC] isEventsSuperuser check for user', userId, ':', isSuperuser, 'roles:', userRoles);
+    return isSuperuser;
+  } catch (err) {
+    console.error('[RBAC] Exception checking events_superuser:', err);
+    return false;
+  }
 }
 
 /**
