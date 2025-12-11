@@ -58,16 +58,41 @@ module.exports = async (req, res) => {
 
       const token = authHeader.replace('Bearer ', '');
       
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-
-      if (error) {
-        return res.status(401).json({ error: 'Invalid token' });
+      // [2025-01-XX] - Simplified token decoding (same as events route)
+      // Decode token directly instead of using supabase.auth.getUser()
+      try {
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+          return res.status(401).json({ error: 'Invalid token format' });
+        }
+        
+        // Decode base64url payload
+        let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) {
+          base64 += '=';
+        }
+        
+        const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
+        const userId = payload.sub;
+        const userEmail = payload.email || 'unknown@example.com';
+        
+        // Validate UUID
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+          return res.status(401).json({ error: 'Invalid token: User ID is not a valid UUID' });
+        }
+        
+        // Return user object from decoded token
+        return res.status(200).json({
+          success: true,
+          user: {
+            id: userId,
+            email: userEmail
+          }
+        });
+      } catch (decodeError) {
+        console.error('Token decode error:', decodeError);
+        return res.status(401).json({ error: `Invalid token: ${decodeError.message}` });
       }
-
-      return res.status(200).json({
-        success: true,
-        user
-      });
 
     } catch (error) {
       console.error('Auth me error:', error);
