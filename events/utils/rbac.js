@@ -82,8 +82,11 @@ async function getAuthenticatedUser(authHeader) {
     
     if (error) {
       console.warn('[RBAC] admin.getUserById() failed:', error.message);
+      console.warn('[RBAC] Error details:', JSON.stringify(error, null, 2));
       // If user not found, create a minimal user object from token
-      if (error.message && error.message.includes('not found')) {
+      // Check multiple possible error messages
+      const errorMsg = (error.message || '').toLowerCase();
+      if (errorMsg.includes('not found') || errorMsg.includes('user not found') || errorMsg.includes('does not exist')) {
         console.log('[RBAC] User not found in auth.users, creating user object from token');
         return { 
           user: { 
@@ -94,6 +97,8 @@ async function getAuthenticatedUser(authHeader) {
           error: null 
         };
       }
+      // Even if error doesn't match, if we have userId, continue to trust decoded token
+      console.log('[RBAC] admin.getUserById() error doesn\'t match "not found", but continuing with decoded token');
     }
   }
   
