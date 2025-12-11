@@ -160,7 +160,19 @@ module.exports = async (req, res) => {
   if (!userIsSuperAdmin && !userIsEventsSuperuser) {
     console.log('[Superuser API] Access denied - neither super_admin nor events_superuser');
     console.log('[Superuser API] Available roles:', allRoles);
-    return res.status(403).json({ error: 'Super admin access required' });
+    console.log('[Superuser API] Service role key present:', !!supabaseServiceRoleKey);
+    console.log('[Superuser API] Role check client type:', supabaseServiceRoleKey ? 'service_role' : 'anon_with_session');
+    return res.status(403).json({ 
+      error: 'Super admin access required',
+      debug: {
+        userId: user.id,
+        serviceRoleKeyPresent: !!supabaseServiceRoleKey,
+        allRoles: allRoles || [],
+        userIsSuperAdmin,
+        userIsEventsSuperuser,
+        roleCheckError: allRolesError ? allRolesError.message : null
+      }
+    });
   }
 
   // Create Supabase client with user's auth token for RLS on events queries
