@@ -3,16 +3,21 @@
   "version": "1.0.0",
   "description": "LocalPlus API - Shared API services for all LocalPlus applications",
   "private": true,
+  "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "npx vercel dev",
+    "deploy": "npx vercel deploy --prod --yes",
+    "dev:local": "node local-server.cjs",
     "build": "echo 'API routes - no build needed'",
-    "start": "node index.js"
+    "start": "node local-server.cjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.50.3",
+    "@supabase/supabase-js": "^2.86.0",
     "cors": "^2.8.5",
-    "express": "^5.1.0"
+    "csv-parse": "^6.1.0",
+    "express": "^5.1.0",
+    "luxon": "^3.7.2"
   },
   "devDependencies": {
     "@types/node": "^20.10.6",
