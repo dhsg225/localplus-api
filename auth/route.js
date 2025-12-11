@@ -63,6 +63,7 @@ module.exports = async (req, res) => {
       try {
         const parts = token.split('.');
         if (parts.length !== 3) {
+          console.error('[Auth] Invalid token format - parts:', parts.length);
           return res.status(401).json({ error: 'Invalid token format' });
         }
         
@@ -72,15 +73,23 @@ module.exports = async (req, res) => {
           base64 += '=';
         }
         
-        const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
+        console.log('[Auth] Decoding token, base64 length:', base64.length);
+        const payloadStr = Buffer.from(base64, 'base64').toString();
+        console.log('[Auth] Decoded payload (first 100 chars):', payloadStr.substring(0, 100));
+        
+        const payload = JSON.parse(payloadStr);
         const userId = payload.sub;
         const userEmail = payload.email || 'unknown@example.com';
         
+        console.log('[Auth] Decoded user ID:', userId, 'email:', userEmail);
+        
         // Validate UUID
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+          console.error('[Auth] Invalid UUID:', userId);
           return res.status(401).json({ error: 'Invalid token: User ID is not a valid UUID' });
         }
         
+        console.log('[Auth] ✅ Token decoded successfully, returning user');
         // Return user object from decoded token
         return res.status(200).json({
           success: true,
@@ -90,7 +99,8 @@ module.exports = async (req, res) => {
           }
         });
       } catch (decodeError) {
-        console.error('Token decode error:', decodeError);
+        console.error('[Auth] Token decode error:', decodeError.message);
+        console.error('[Auth] Error stack:', decodeError.stack);
         return res.status(401).json({ error: `Invalid token: ${decodeError.message}` });
       }
 
