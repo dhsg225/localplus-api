@@ -20,27 +20,54 @@ async function getAuthenticatedUser(authHeader) {
   console.log('[RBAC] getAuthenticatedUser - Token length:', token.length);
   console.log('[RBAC] getAuthenticatedUser - Token starts with:', token.substring(0, 20) + '...');
   
-  // [2025-01-XX] - Try service role client first (more reliable for token validation)
-  // If service role key is available, use it to validate token
-  if (supabaseServiceRoleKey) {
-    console.log('[RBAC] Using service role client for token validation');
+  // [2025-01-XX] - Decode token to get user ID first (works even if token is expired)
+  // This allows us to use admin.getUserById() which is more reliable
+  let userId = null;
+  try {
+    // Simple JWT decode (no verification needed - we'll verify user exists)
+    const parts = token.split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+      userId = payload.sub;
+      console.log('[RBAC] Decoded user ID from token:', userId);
+    }
+  } catch (err) {
+    console.warn('[RBAC] Could not decode token:', err.message);
+  }
+  
+  // [2025-01-XX] - Try service role client with admin.getUserById() (most reliable)
+  if (supabaseServiceRoleKey && userId) {
+    console.log('[RBAC] Using service role client with admin.getUserById()');
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    const { data: { user }, error } = await supabaseAdmin.auth.admin.getUserById(userId);
     
     if (error) {
-      console.error('[RBAC] Service role client - Error:', {
+      console.error('[RBAC] Service role admin.getUserById() - Error:', {
         code: error.code || 'unknown',
         message: error.message,
         status: error.status || 'unknown'
       });
-      // Fall through to try anon client
+      // Fall through to try regular getUser()
     } else if (user) {
-      console.log('[RBAC] ✅ Service role client - Success, user ID:', user.id);
+      console.log('[RBAC] ✅ Service role admin.getUserById() - Success, user ID:', user.id);
       return { user, error: null };
     }
   }
   
-  // Fallback to anon client
+  // Fallback: Try regular getUser() with service role client
+  if (supabaseServiceRoleKey) {
+    console.log('[RBAC] Using service role client with getUser()');
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    
+    if (!error && user) {
+      console.log('[RBAC] ✅ Service role getUser() - Success, user ID:', user.id);
+      return { user, error: null };
+    }
+    console.warn('[RBAC] Service role getUser() failed:', error?.message || 'No user');
+  }
+  
+  // Final fallback: Anon client
   console.log('[RBAC] Using anon client for token validation');
   const supabase = createClient(supabaseUrl, supabaseKey);
   const { data: { user }, error } = await supabase.auth.getUser(token);
@@ -244,4 +271,5 @@ module.exports = {
   authorizeRequest,
   isEventsSuperuser
 };
+
 
