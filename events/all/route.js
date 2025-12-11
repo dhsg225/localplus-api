@@ -134,7 +134,16 @@ module.exports = async (req, res) => {
 
   // [2025-01-XX] - Verify super admin OR events_superuser
   console.log('[Superuser API] Checking access for user:', user.id);
+  console.log('[Superuser API] Service role key present:', !!supabaseServiceRoleKey);
   console.log('[Superuser API] Using service role for role check:', !!supabaseServiceRoleKey);
+  
+  // Test query to see what roles exist for this user
+  const { data: allRoles, error: allRolesError } = await roleCheckClient
+    .from('user_roles')
+    .select('role, is_active')
+    .eq('user_id', user.id);
+  console.log('[Superuser API] All roles for user:', allRoles, 'error:', allRolesError);
+  
   const userIsSuperAdmin = await isSuperAdmin(roleCheckClient, user.id);
   const userIsEventsSuperuser = await isEventsSuperuser(roleCheckClient, user.id);
   
@@ -143,6 +152,7 @@ module.exports = async (req, res) => {
   
   if (!userIsSuperAdmin && !userIsEventsSuperuser) {
     console.log('[Superuser API] Access denied - neither super_admin nor events_superuser');
+    console.log('[Superuser API] Available roles:', allRoles);
     return res.status(403).json({ error: 'Super admin access required' });
   }
 
