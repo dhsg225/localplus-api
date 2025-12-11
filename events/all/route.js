@@ -16,39 +16,50 @@ async function getSupabaseClient(authToken = null) {
     auth: {
       persistSession: false,
       autoRefreshToken: false
-    }
-  };
-  
-  // If auth token provided, include it in global headers for all requests
-  if (authToken) {
-    clientOptions.global = {
+    },
+    global: authToken ? {
       headers: {
         Authorization: `Bearer ${authToken}`
       }
-    };
-    
+    } : {}
+  };
+  
+  const client = createClient(supabaseUrl, supabaseKey, clientOptions);
+  
+  // If auth token provided, set session for auth.uid() to work in RLS policies
+  if (authToken) {
     try {
-      // Also set session for auth.uid() to work in RLS policies
-      const client = createClient(supabaseUrl, supabaseKey, clientOptions);
-      const { data: { user }, error } = await client.auth.getUser(authToken);
-      if (user && !error) {
-        await client.auth.setSession({
+      // Verify token is valid first
+      const { data: { user }, error: getUserError } = await client.auth.getUser(authToken);
+      if (getUserError) {
+        console.warn('[Superuser API] Error getting user from token:', getUserError.message);
+        return client; // Return client anyway, headers might work
+      }
+      
+      if (user) {
+        // Set session - this is critical for RLS auth.uid() to work
+        const { data: sessionData, error: sessionError } = await client.auth.setSession({
           access_token: authToken,
           refresh_token: authToken
         });
-        console.log('[Superuser API] Session set for user:', user.id);
-      } else {
-        console.warn('[Superuser API] Failed to get user from token:', error);
+        
+        if (sessionError) {
+          console.warn('[Superuser API] Error setting session:', sessionError.message);
+        } else if (sessionData?.session) {
+          console.log('[Superuser API] Session set successfully for user:', user.id);
+          // Verify auth.uid() is working
+          const { data: { user: verifyUser } } = await client.auth.getUser();
+          console.log('[Superuser API] Verified auth.uid():', verifyUser?.id || 'NULL');
+        } else {
+          console.warn('[Superuser API] Session set but no session data returned');
+        }
       }
-      return client;
     } catch (err) {
-      console.warn('[Superuser API] Error setting auth session:', err.message);
-      // Return client anyway, headers should still work
-      return createClient(supabaseUrl, supabaseKey, clientOptions);
+      console.warn('[Superuser API] Exception setting auth session:', err.message);
     }
   }
   
-  return createClient(supabaseUrl, supabaseKey, clientOptions);
+  return client;
 }
 
 // [2025-11-29] - Check if user is super admin
