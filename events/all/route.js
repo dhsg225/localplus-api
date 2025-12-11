@@ -8,13 +8,23 @@ const { getAuthenticatedUser, isEventsSuperuser } = require('../utils/rbac');
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impva25wcmFoaHFkaHZkaHptdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTI3MTAsImV4cCI6MjA2NTIyODcxMH0.YYkEkYFWgd_4-OtgG47xj6b5MX_fu7zNQxrW9ymR8Xk';
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+// [2025-01-XX] - Read service role key from environment
+// Try multiple possible env var names (Vercel might use different names)
+const supabaseServiceRoleKey = 
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 
+  process.env.SUPABASE_SERVICE_KEY ||
+  process.env.SUPABASE_SERVICE_ROLE ||
+  null;
 
 // Debug: Log if service role key is available (but don't log the actual key)
 if (supabaseServiceRoleKey) {
-  console.log('[Superuser API] Service role key is configured (length:', supabaseServiceRoleKey.length, ')');
+  console.log('[Superuser API] ✅ Service role key is configured');
+  console.log('[Superuser API] Service role key length:', supabaseServiceRoleKey.length);
+  console.log('[Superuser API] Service role key starts with:', supabaseServiceRoleKey.substring(0, 20) + '...');
 } else {
-  console.warn('[Superuser API] WARNING: SUPABASE_SERVICE_ROLE_KEY not set - will use anon client with session');
+  console.warn('[Superuser API] ⚠️ WARNING: SUPABASE_SERVICE_ROLE_KEY not set');
+  console.warn('[Superuser API] Checked env vars: SUPABASE_SERVICE_ROLE_KEY, SUPABASE_SERVICE_KEY, SUPABASE_SERVICE_ROLE');
+  console.warn('[Superuser API] Will fall back to anon client with session (may not work due to RLS)');
 }
 
 // [2025-11-29] - Create supabase client with user's auth token for RLS policies
