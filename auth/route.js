@@ -61,7 +61,7 @@ module.exports = async (req, res) => {
       // [2025-01-XX] - Simplified token decoding (same as events route)
       // Decode token directly instead of using supabase.auth.getUser()
       try {
-        const parts = token.split('.');
+    const parts = token.split('.');
         if (parts.length !== 3) {
           console.error('[Auth] Invalid token format - parts:', parts.length);
           return res.status(401).json({ error: 'Invalid token format' });
