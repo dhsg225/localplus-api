@@ -121,10 +121,10 @@ async function logAuditAction(supabaseClient, eventId, adminUserId, action, prev
 }
 
 module.exports = async (req, res) => {
-  // Enable CORS
+  // Enable CORS (allow custom x-user-token header from frontend)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-token');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
