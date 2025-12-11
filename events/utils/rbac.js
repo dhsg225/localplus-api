@@ -12,18 +12,23 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.
  */
 async function getAuthenticatedUser(authHeader) {
   if (!authHeader) {
+    console.log('[RBAC] ❌ No authorization header');
     return { user: null, error: 'Authorization header required' };
   }
 
   const token = authHeader.replace('Bearer ', '');
   
   console.log('[RBAC] getAuthenticatedUser - Token length:', token.length);
+  console.log('[RBAC] getAuthenticatedUser - Token starts with:', token.substring(0, 30) + '...');
   
   // [2025-01-XX] - SIMPLIFIED: Just decode token and return user, no validation
   // Frontend uses this token successfully, so we trust it
   try {
     const parts = token.split('.');
+    console.log('[RBAC] Token parts count:', parts.length);
+    
     if (parts.length !== 3) {
+      console.error('[RBAC] ❌ Invalid token format - expected 3 parts, got:', parts.length);
       return { user: null, error: 'Invalid token format' };
     }
     
@@ -33,17 +38,37 @@ async function getAuthenticatedUser(authHeader) {
       base64 += '=';
     }
     
-    const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
+    console.log('[RBAC] Decoding payload, base64 length:', base64.length);
+    
+    // Ensure Buffer is available (should be in Node.js)
+    if (typeof Buffer === 'undefined') {
+      console.error('[RBAC] ❌ Buffer is not available!');
+      return { user: null, error: 'Server error: Buffer not available' };
+    }
+    
+    const payloadStr = Buffer.from(base64, 'base64').toString('utf8');
+    console.log('[RBAC] Decoded payload string (first 200 chars):', payloadStr.substring(0, 200));
+    
+    const payload = JSON.parse(payloadStr);
     const userId = payload.sub;
     const userEmail = payload.email || 'unknown@example.com';
     
-    console.log('[RBAC] ✅ Token decoded - user ID:', userId, 'email:', userEmail);
+    console.log('[RBAC] ✅ Token decoded successfully');
+    console.log('[RBAC] User ID:', userId);
+    console.log('[RBAC] User email:', userEmail);
     
     // Validate UUID
+    if (!userId) {
+      console.error('[RBAC] ❌ No user ID in token payload');
+      return { user: null, error: 'Invalid token: No user ID found' };
+    }
+    
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+      console.error('[RBAC] ❌ Invalid UUID format:', userId);
       return { user: null, error: 'Invalid token: User ID is not a valid UUID' };
     }
     
+    console.log('[RBAC] ✅ Returning user object');
     // Return user immediately - no validation needed
     return { 
       user: { 
@@ -53,7 +78,9 @@ async function getAuthenticatedUser(authHeader) {
       error: null 
     };
   } catch (err) {
-    console.error('[RBAC] Token decode error:', err.message);
+    console.error('[RBAC] ❌ Token decode error:', err.message);
+    console.error('[RBAC] Error stack:', err.stack);
+    console.error('[RBAC] Token parts:', token.split('.').map((p, i) => `Part ${i}: length ${p.length}`));
     return { user: null, error: `Invalid token: ${err.message}` };
   }
 }
