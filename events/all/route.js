@@ -205,10 +205,15 @@ module.exports = async (req, res) => {
     console.log('[Superuser API] ❌ Access denied - neither super_admin nor events_superuser');
     console.log('[Superuser API] Debug info:', JSON.stringify(debugInfo, null, 2));
     
-    return res.status(403).json({ 
+    // [2025-01-XX] - Return detailed debug info to help diagnose the issue
+    const response = { 
       error: 'Super admin access required',
-      debug: debugInfo
-    });
+      debug: debugInfo,
+      message: 'Token validation passed, but role check failed. See debug object for details.'
+    };
+    
+    console.log('[Superuser API] Returning 403 with debug info:', JSON.stringify(response, null, 2));
+    return res.status(403).json(response);
   }
 
   // Create Supabase client with user's auth token for RLS on events queries
