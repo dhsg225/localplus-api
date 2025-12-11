@@ -18,71 +18,42 @@ async function getAuthenticatedUser(authHeader) {
   const token = authHeader.replace('Bearer ', '');
   
   console.log('[RBAC] getAuthenticatedUser - Token length:', token.length);
-  console.log('[RBAC] getAuthenticatedUser - Token starts with:', token.substring(0, 20) + '...');
   
-  // [2025-01-XX] - Decode token to get user ID and email (works even if token validation fails)
-  // Since frontend can use this token successfully, we trust the decoded values
-  let userId = null;
-  let userEmail = null;
-  let tokenExp = null;
-  
+  // [2025-01-XX] - SIMPLIFIED: Just decode token and return user, no validation
+  // Frontend uses this token successfully, so we trust it
   try {
     const parts = token.split('.');
-    console.log('[RBAC] Token parts count:', parts.length);
-    
-    if (parts.length === 3) {
-      // Handle base64url encoding (JWT uses base64url, not base64)
-      let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-      // Add padding if needed
-      while (base64.length % 4) {
-        base64 += '=';
-      }
-      
-      console.log('[RBAC] Attempting to decode payload, base64 length:', base64.length);
-      const payloadStr = Buffer.from(base64, 'base64').toString();
-      console.log('[RBAC] Decoded payload string (first 200 chars):', payloadStr.substring(0, 200));
-      
-      const payload = JSON.parse(payloadStr);
-      userId = payload.sub;
-      userEmail = payload.email;
-      tokenExp = payload.exp;
-      
-      console.log('[RBAC] ✅ Token decoded successfully');
-      console.log('[RBAC] Decoded token - user ID:', userId, 'email:', userEmail);
-      console.log('[RBAC] Token expiration:', tokenExp ? new Date(tokenExp * 1000).toISOString() : 'N/A');
-      console.log('[RBAC] Current time:', new Date().toISOString());
-      
-      // Check if token is expired
-      if (tokenExp && Date.now() / 1000 > tokenExp) {
-        console.warn('[RBAC] Token is expired');
-        // Still trust it if we have userId - expiration check can be lenient for now
-        console.log('[RBAC] Token expired but trusting decoded userId anyway');
-      }
-      
-      // Validate UUID format
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
-      if (!isUUID) {
-        console.warn('[RBAC] User ID is not a UUID:', userId);
-        return { user: null, error: 'Invalid token: User ID is not a valid UUID' };
-      }
-      
-      // If we got here, token decoded successfully - trust it immediately
-      console.log('[RBAC] ✅ Token decoded and validated, returning user object');
-      return { 
-        user: { 
-          id: userId, 
-          email: userEmail || 'unknown@example.com'
-        }, 
-        error: null 
-      };
-    } else {
-      console.error('[RBAC] Invalid token format - wrong number of parts:', parts.length);
+    if (parts.length !== 3) {
       return { user: null, error: 'Invalid token format' };
     }
+    
+    // Decode base64url payload
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
+    
+    const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
+    const userId = payload.sub;
+    const userEmail = payload.email || 'unknown@example.com';
+    
+    console.log('[RBAC] ✅ Token decoded - user ID:', userId, 'email:', userEmail);
+    
+    // Validate UUID
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+      return { user: null, error: 'Invalid token: User ID is not a valid UUID' };
+    }
+    
+    // Return user immediately - no validation needed
+    return { 
+      user: { 
+        id: userId, 
+        email: userEmail
+      }, 
+      error: null 
+    };
   } catch (err) {
-    console.error('[RBAC] Could not decode token:', err.message);
-    console.error('[RBAC] Error stack:', err.stack);
-    console.error('[RBAC] Token parts:', token.split('.').map((p, i) => `Part ${i}: length ${p.length}, starts with: ${p.substring(0, 20)}...`));
+    console.error('[RBAC] Token decode error:', err.message);
     return { user: null, error: `Invalid token: ${err.message}` };
   }
   
