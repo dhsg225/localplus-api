@@ -8,6 +8,7 @@ const { getAuthenticatedUser, isEventsSuperuser } = require('../utils/rbac');
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impva25wcmFoaHFkaHZkaHptdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTI3MTAsImV4cCI6MjA2NTIyODcxMH0.YYkEkYFWgd_4-OtgG47xj6b5MX_fu7zNQxrW9ymR8Xk';
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // [2025-11-29] - Create supabase client with user's auth token for RLS policies
 async function getSupabaseClient(authToken = null) {
@@ -124,12 +125,18 @@ module.exports = async (req, res) => {
   }
 
   const authToken = authHeader.replace('Bearer ', '');
-  const supabaseClient = await getSupabaseClient(authToken);
+
+  // [2025-01-XX] - Use service role client for role checks to bypass RLS
+  // This is more reliable than trying to set session on anon client
+  const roleCheckClient = supabaseServiceRoleKey
+    ? createClient(supabaseUrl, supabaseServiceRoleKey)
+    : await getSupabaseClient(authToken);
 
   // [2025-01-XX] - Verify super admin OR events_superuser
   console.log('[Superuser API] Checking access for user:', user.id);
-  const userIsSuperAdmin = await isSuperAdmin(supabaseClient, user.id);
-  const userIsEventsSuperuser = await isEventsSuperuser(supabaseClient, user.id);
+  console.log('[Superuser API] Using service role for role check:', !!supabaseServiceRoleKey);
+  const userIsSuperAdmin = await isSuperAdmin(roleCheckClient, user.id);
+  const userIsEventsSuperuser = await isEventsSuperuser(roleCheckClient, user.id);
   
   console.log('[Superuser API] userIsSuperAdmin:', userIsSuperAdmin);
   console.log('[Superuser API] userIsEventsSuperuser:', userIsEventsSuperuser);
@@ -138,6 +145,9 @@ module.exports = async (req, res) => {
     console.log('[Superuser API] Access denied - neither super_admin nor events_superuser');
     return res.status(403).json({ error: 'Super admin access required' });
   }
+
+  // Create Supabase client with user's auth token for RLS on events queries
+  const supabaseClient = await getSupabaseClient(authToken);
   
   console.log('[Superuser API] Access granted');
 
