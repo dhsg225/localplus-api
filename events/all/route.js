@@ -11,28 +11,44 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cC
 
 // [2025-11-29] - Create supabase client with user's auth token for RLS policies
 async function getSupabaseClient(authToken = null) {
-  const client = createClient(supabaseUrl, supabaseKey, {
+  // Configure client with auth token in headers for RLS
+  const clientOptions = {
     auth: {
       persistSession: false,
       autoRefreshToken: false
     }
-  });
+  };
   
+  // If auth token provided, include it in global headers for all requests
   if (authToken) {
+    clientOptions.global = {
+      headers: {
+        Authorization: `Bearer ${authToken}`
+      }
+    };
+    
     try {
+      // Also set session for auth.uid() to work in RLS policies
+      const client = createClient(supabaseUrl, supabaseKey, clientOptions);
       const { data: { user }, error } = await client.auth.getUser(authToken);
       if (user && !error) {
         await client.auth.setSession({
           access_token: authToken,
           refresh_token: authToken
         });
+        console.log('[Superuser API] Session set for user:', user.id);
+      } else {
+        console.warn('[Superuser API] Failed to get user from token:', error);
       }
+      return client;
     } catch (err) {
       console.warn('[Superuser API] Error setting auth session:', err.message);
+      // Return client anyway, headers should still work
+      return createClient(supabaseUrl, supabaseKey, clientOptions);
     }
   }
   
-  return client;
+  return createClient(supabaseUrl, supabaseKey, clientOptions);
 }
 
 // [2025-11-29] - Check if user is super admin
