@@ -142,20 +142,37 @@ module.exports = async (req, res) => {
   // [2025-01-XX] - Verify super admin OR events_superuser
   console.log('[Superuser API] Checking access for user:', user.id);
   console.log('[Superuser API] Service role key present:', !!supabaseServiceRoleKey);
+  console.log('[Superuser API] Service role key length:', supabaseServiceRoleKey ? supabaseServiceRoleKey.length : 0);
   console.log('[Superuser API] Using service role for role check:', !!supabaseServiceRoleKey);
   
-  // Test query to see what roles exist for this user
+  // Test query to see what roles exist for this user (with detailed error logging)
   const { data: allRoles, error: allRolesError } = await roleCheckClient
     .from('user_roles')
-    .select('role, is_active')
+    .select('role, is_active, user_id')
     .eq('user_id', user.id);
-  console.log('[Superuser API] All roles for user:', allRoles, 'error:', allRolesError);
   
+  if (allRolesError) {
+    console.error('[Superuser API] ERROR querying user_roles:', {
+      code: allRolesError.code,
+      message: allRolesError.message,
+      details: allRolesError.details,
+      hint: allRolesError.hint
+    });
+  } else {
+    console.log('[Superuser API] All roles for user:', JSON.stringify(allRoles, null, 2));
+    console.log('[Superuser API] Role count:', allRoles?.length || 0);
+  }
+  
+  // Check each role individually with detailed logging
   const userIsSuperAdmin = await isSuperAdmin(roleCheckClient, user.id);
   const userIsEventsSuperuser = await isEventsSuperuser(roleCheckClient, user.id);
   
   console.log('[Superuser API] userIsSuperAdmin:', userIsSuperAdmin);
   console.log('[Superuser API] userIsEventsSuperuser:', userIsEventsSuperuser);
+  
+  // Additional verification: Check if events_superuser exists in allRoles
+  const hasEventsSuperuserInAllRoles = allRoles?.some(r => r.role === 'events_superuser' && r.is_active);
+  console.log('[Superuser API] events_superuser found in allRoles query:', hasEventsSuperuserInAllRoles);
   
   if (!userIsSuperAdmin && !userIsEventsSuperuser) {
     console.log('[Superuser API] Access denied - neither super_admin nor events_superuser');
