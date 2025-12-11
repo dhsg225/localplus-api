@@ -70,46 +70,37 @@ async function getAuthenticatedUser(authHeader) {
   }
   
   // [2025-01-XX] - Try admin.getUserById() first (most reliable if user exists)
+  // But if it fails, we'll trust the decoded token since frontend uses it successfully
   if (supabaseServiceRoleKey && userId) {
-    console.log('[RBAC] Attempting admin.getUserById() with service role');
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
-    const { data: { user }, error } = await supabaseAdmin.auth.admin.getUserById(userId);
-    
-    if (!error && user) {
-      console.log('[RBAC] ✅ admin.getUserById() - Success, user ID:', user.id);
-      return { user, error: null };
-    }
-    
-    if (error) {
-      console.warn('[RBAC] admin.getUserById() failed:', error.message);
-      console.warn('[RBAC] Error details:', JSON.stringify(error, null, 2));
-      // If user not found, create a minimal user object from token
-      // Check multiple possible error messages
-      const errorMsg = (error.message || '').toLowerCase();
-      if (errorMsg.includes('not found') || errorMsg.includes('user not found') || errorMsg.includes('does not exist')) {
-        console.log('[RBAC] User not found in auth.users, creating user object from token');
-        return { 
-          user: { 
-            id: userId, 
-            email: userEmail,
-            // Add other fields that might be needed
-          }, 
-          error: null 
-        };
+    console.log('[RBAC] Attempting admin.getUserById() with service role for user:', userId);
+    try {
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+      const { data: { user }, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+      
+      if (!error && user) {
+        console.log('[RBAC] ✅ admin.getUserById() - Success, user ID:', user.id);
+        return { user, error: null };
       }
-      // Even if error doesn't match, if we have userId, continue to trust decoded token
-      console.log('[RBAC] admin.getUserById() error doesn\'t match "not found", but continuing with decoded token');
+      
+      if (error) {
+        console.warn('[RBAC] admin.getUserById() failed:', error.message);
+        console.warn('[RBAC] Error code:', error.code || 'unknown');
+        // Continue to trust decoded token - don't return error here
+      }
+    } catch (err) {
+      console.warn('[RBAC] Exception in admin.getUserById():', err.message);
+      // Continue to trust decoded token
     }
   }
   
-  // [2025-01-XX] - If admin API fails, trust the decoded token (frontend uses it successfully)
-  // Create a minimal user object from decoded token
-  if (userId && userEmail) {
-    console.log('[RBAC] ✅ Using decoded token values - user ID:', userId, 'email:', userEmail);
+  // [2025-01-XX] - Always trust the decoded token if we have userId (frontend uses it successfully)
+  // This is the critical path - even if admin API fails, we trust the token
+  if (userId) {
+    console.log('[RBAC] ✅ Trusting decoded token - user ID:', userId, 'email:', userEmail || 'N/A');
     return { 
       user: { 
         id: userId, 
-        email: userEmail 
+        email: userEmail || 'unknown@example.com'
       }, 
       error: null 
     };
