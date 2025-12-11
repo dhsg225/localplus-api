@@ -17,12 +17,26 @@ async function getAuthenticatedUser(authHeader) {
   const token = authHeader.replace('Bearer ', '');
   const supabase = createClient(supabaseUrl, supabaseKey);
   
+  console.log('[RBAC] getAuthenticatedUser - Token length:', token.length);
+  console.log('[RBAC] getAuthenticatedUser - Token starts with:', token.substring(0, 20) + '...');
+  
   const { data: { user }, error } = await supabase.auth.getUser(token);
   
-  if (error || !user) {
-    return { user: null, error: 'Invalid or expired token' };
+  if (error) {
+    console.error('[RBAC] getAuthenticatedUser - Error:', {
+      code: error.code || 'unknown',
+      message: error.message,
+      status: error.status || 'unknown'
+    });
+    return { user: null, error: `Invalid or expired token: ${error.message || 'Unknown error'}` };
+  }
+  
+  if (!user) {
+    console.error('[RBAC] getAuthenticatedUser - No user returned (no error)');
+    return { user: null, error: 'Invalid or expired token: User not found. Please ensure you are logged in with a valid user account.' };
   }
 
+  console.log('[RBAC] getAuthenticatedUser - Success, user ID:', user.id);
   return { user, error: null };
 }
 
