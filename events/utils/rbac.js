@@ -3,6 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impva25wcmFoaHFkaHZkaHptdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTI3MTAsImV4cCI6MjA2NTIyODcxMH0.YYkEkYFWgd_4-OtgG47xj6b5MX_fu7zNQxrW9ymR8Xk';
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE;
 
 /**
  * Get authenticated user from Authorization header
@@ -15,15 +16,37 @@ async function getAuthenticatedUser(authHeader) {
   }
 
   const token = authHeader.replace('Bearer ', '');
-  const supabase = createClient(supabaseUrl, supabaseKey);
   
   console.log('[RBAC] getAuthenticatedUser - Token length:', token.length);
   console.log('[RBAC] getAuthenticatedUser - Token starts with:', token.substring(0, 20) + '...');
   
+  // [2025-01-XX] - Try service role client first (more reliable for token validation)
+  // If service role key is available, use it to validate token
+  if (supabaseServiceRoleKey) {
+    console.log('[RBAC] Using service role client for token validation');
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    
+    if (error) {
+      console.error('[RBAC] Service role client - Error:', {
+        code: error.code || 'unknown',
+        message: error.message,
+        status: error.status || 'unknown'
+      });
+      // Fall through to try anon client
+    } else if (user) {
+      console.log('[RBAC] ✅ Service role client - Success, user ID:', user.id);
+      return { user, error: null };
+    }
+  }
+  
+  // Fallback to anon client
+  console.log('[RBAC] Using anon client for token validation');
+  const supabase = createClient(supabaseUrl, supabaseKey);
   const { data: { user }, error } = await supabase.auth.getUser(token);
   
   if (error) {
-    console.error('[RBAC] getAuthenticatedUser - Error:', {
+    console.error('[RBAC] Anon client - Error:', {
       code: error.code || 'unknown',
       message: error.message,
       status: error.status || 'unknown'
@@ -32,11 +55,11 @@ async function getAuthenticatedUser(authHeader) {
   }
   
   if (!user) {
-    console.error('[RBAC] getAuthenticatedUser - No user returned (no error)');
+    console.error('[RBAC] Anon client - No user returned (no error)');
     return { user: null, error: 'Invalid or expired token: User not found. Please ensure you are logged in with a valid user account.' };
   }
 
-  console.log('[RBAC] getAuthenticatedUser - Success, user ID:', user.id);
+  console.log('[RBAC] ✅ Anon client - Success, user ID:', user.id);
   return { user, error: null };
 }
 
