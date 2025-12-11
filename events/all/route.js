@@ -185,20 +185,29 @@ module.exports = async (req, res) => {
   console.log('[Superuser API] events_superuser found in allRoles query:', hasEventsSuperuserInAllRoles);
   
   if (!userIsSuperAdmin && !userIsEventsSuperuser) {
-    console.log('[Superuser API] Access denied - neither super_admin nor events_superuser');
-    console.log('[Superuser API] Available roles:', allRoles);
-    console.log('[Superuser API] Service role key present:', !!supabaseServiceRoleKey);
-    console.log('[Superuser API] Role check client type:', supabaseServiceRoleKey ? 'service_role' : 'anon_with_session');
+    const debugInfo = {
+      userId: user.id,
+      serviceRoleKeyPresent: !!supabaseServiceRoleKey,
+      serviceRoleKeyLength: supabaseServiceRoleKey ? supabaseServiceRoleKey.length : 0,
+      allRoles: allRoles || [],
+      allRolesError: allRolesError ? {
+        code: allRolesError.code,
+        message: allRolesError.message,
+        details: allRolesError.details,
+        hint: allRolesError.hint
+      } : null,
+      userIsSuperAdmin,
+      userIsEventsSuperuser,
+      hasEventsSuperuserInAllRoles: allRoles?.some(r => r.role === 'events_superuser' && r.is_active) || false,
+      roleCheckClientType: supabaseServiceRoleKey ? 'service_role' : 'anon_with_session'
+    };
+    
+    console.log('[Superuser API] ❌ Access denied - neither super_admin nor events_superuser');
+    console.log('[Superuser API] Debug info:', JSON.stringify(debugInfo, null, 2));
+    
     return res.status(403).json({ 
       error: 'Super admin access required',
-      debug: {
-        userId: user.id,
-        serviceRoleKeyPresent: !!supabaseServiceRoleKey,
-        allRoles: allRoles || [],
-        userIsSuperAdmin,
-        userIsEventsSuperuser,
-        roleCheckError: allRolesError ? allRolesError.message : null
-      }
+      debug: debugInfo
     });
   }
 
