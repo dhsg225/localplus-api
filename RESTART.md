@@ -1,6 +1,7 @@
 # LocalPlus API - RESTART Guide
 
 **Recent Activity Log:**
+- [Bangkok Time: 2025-12-12 12:45:00] - Re-added hero_image_url and image_url to events/all select (metadata still omitted) to restore covers safely.
 - [Bangkok Time: 2025-12-12 12:35:00] - Rolled back events/all select to minimal columns to restore listing (remove image fields causing 500).
 - [Bangkok Time: 2025-12-12 12:25:00] - Trimmed events/all select to hero_image_url/image_url (removed metadata) to stop 500s while keeping covers.
 - [Bangkok Time: 2025-12-11 18:27:00] - Added hero_image_url/image_url/metadata to events/all select so original covers return.

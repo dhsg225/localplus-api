@@ -253,6 +253,8 @@ module.exports = async (req, res) => {
         .select(`
           id,
           title,
+          hero_image_url,
+          image_url,
           status,
           start_time,
           end_time,
