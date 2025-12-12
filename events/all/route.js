@@ -255,7 +255,6 @@ module.exports = async (req, res) => {
           title,
           hero_image_url,
           image_url,
-          metadata,
           status,
           start_time,
           end_time,
