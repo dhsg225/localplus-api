@@ -253,8 +253,6 @@ module.exports = async (req, res) => {
         .select(`
           id,
           title,
-          hero_image_url,
-          image_url,
           status,
           start_time,
           end_time,
@@ -265,7 +263,7 @@ module.exports = async (req, res) => {
           updated_at,
           location,
           venue_area
-        `)
+        `) // [2025-12-12] - Revert to minimal columns to prevent 500s; add image fields later once safe
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
       // Apply filters
