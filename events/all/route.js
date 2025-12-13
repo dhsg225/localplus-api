@@ -262,7 +262,8 @@ module.exports = async (req, res) => {
           created_at,
           updated_at,
           location,
-          venue_area
+          venue_area,
+          hero_image_url
         `) // [2025-12-12] - Revert to minimal columns to prevent 500s; add image fields later once safe
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
