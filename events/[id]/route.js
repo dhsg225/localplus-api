@@ -12,16 +12,26 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cC
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = async (req, res) => {
-  // Enable CORS - Set headers before any response
-  // [2025-01-XX] - Align headers with other endpoints to satisfy preflight
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-token, x-supabase-token, x-original-authorization');
-  res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
+  try {
+    // Enable CORS - Set headers before any response
+    // [2025-01-XX] - Align headers with other endpoints to satisfy preflight
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-token, x-supabase-token, x-original-authorization');
+    res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
 
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    // Handle preflight OPTIONS request - return early before any other processing
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+  } catch (error) {
+    console.error('[events/[id]] Error in OPTIONS/CORS setup:', error);
+    // Still set CORS headers even on error
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+    return res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 
   // Extract ID from URL path
