@@ -8,7 +8,10 @@
     { "src": "events/[id]/route.js", "use": "@vercel/node" },
     { "src": "events/[id]/participants/route.js", "use": "@vercel/node" },
     { "src": "events/debug-role-check/route.js", "use": "@vercel/node" },
-    { "src": "events/test-auth/route.js", "use": "@vercel/node" }
+    { "src": "events/test-auth/route.js", "use": "@vercel/node" },
+    { "src": "organizers/route.js", "use": "@vercel/node" },
+    { "src": "locations/route.js", "use": "@vercel/node" },
+    { "src": "categories/route.js", "use": "@vercel/node" }
   ],
   "rewrites": [
     { "source": "/api/auth", "destination": "/auth/route.js" },
@@ -18,6 +21,9 @@
     { "source": "/api/events/:id", "destination": "/events/[id]/route.js" },
     { "source": "/api/events/:id/participants", "destination": "/events/[id]/participants/route.js" },
     { "source": "/api/events/debug-role-check", "destination": "/events/debug-role-check/route.js" },
-    { "source": "/api/events/test-auth", "destination": "/events/test-auth/route.js" }
+    { "source": "/api/events/test-auth", "destination": "/events/test-auth/route.js" },
+    { "source": "/api/organizers", "destination": "/organizers/route.js" },
+    { "source": "/api/locations", "destination": "/locations/route.js" },
+    { "source": "/api/categories", "destination": "/categories/route.js" }
   ]
 }
