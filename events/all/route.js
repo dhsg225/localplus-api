@@ -241,6 +241,7 @@ module.exports = async (req, res) => {
         onlyUpcoming,
         onlyScraped,
         needsReview,
+        search, // [2025-01-XX] - Server-side search query
         
         // Sorting
         sortBy = 'start_time', // 'start_time', 'created_at', 'title'
@@ -301,6 +302,15 @@ module.exports = async (req, res) => {
         query = query.eq('status', 'scraped_draft');
       }
 
+      // [2025-01-XX] - Server-side search: Search in title, location, venue_area
+      if (search && search.trim()) {
+        const searchTerm = `%${search.trim()}%`;
+        // Use Supabase's or() with ilike for case-insensitive search across multiple fields
+        // Format: field.ilike.value,field2.ilike.value2
+        query = query.or(`title.ilike.${searchTerm},location.ilike.${searchTerm},venue_area.ilike.${searchTerm}`);
+        console.log(`[Superuser API] Searching for: "${search.trim()}"`);
+      }
+
       // Sorting
       const validSortFields = ['start_time', 'created_at', 'title'];
       const sortField = validSortFields.includes(sortBy) ? sortBy : 'start_time';
@@ -312,6 +322,62 @@ module.exports = async (req, res) => {
       if (error) {
         console.error('[Superuser API] Error fetching events:', error);
         return res.status(500).json({ error: 'Failed to fetch events' });
+      }
+
+      // [2025-12-01] - Resolve event_type (comma-separated term IDs) to category names
+      if (events && events.length > 0) {
+        // Get all unique term IDs from all events
+        const allTermIds = new Set();
+        events.forEach(event => {
+          if (event.event_type) {
+            const ids = event.event_type.split(',').map(id => id.trim()).filter(id => id);
+            ids.forEach(id => allTermIds.add(id));
+          }
+        });
+
+        // Fetch term mappings from wp_term_mapping table
+        // [2025-12-14] - Use service role client for wp_term_mapping to bypass RLS if needed
+        const termIdsArray = Array.from(allTermIds).map(id => parseInt(id)).filter(id => !isNaN(id));
+        let termMapping = {};
+        
+        if (termIdsArray.length > 0) {
+          // Use service role client if available, otherwise use regular client
+          const mappingClient = supabaseServiceRoleKey 
+            ? createClient(supabaseUrl, supabaseServiceRoleKey)
+            : supabaseClient;
+          
+          const { data: mappings, error: mappingError } = await mappingClient
+            .from('wp_term_mapping')
+            .select('term_id, name')
+            .in('term_id', termIdsArray);
+          
+          if (!mappingError && mappings) {
+            mappings.forEach(m => {
+              termMapping[m.term_id] = m.name;
+            });
+            console.log(`[Superuser API] Resolved ${mappings.length}/${termIdsArray.length} category names`);
+          } else if (mappingError) {
+            console.warn('[Superuser API] Error fetching term mappings:', mappingError.message);
+            console.warn('[Superuser API] Term IDs attempted:', termIdsArray);
+          } else {
+            console.warn(`[Superuser API] No mappings found for ${termIdsArray.length} term IDs`);
+          }
+        }
+
+        // Resolve event_type to names for each event
+        events.forEach(event => {
+          if (event.event_type) {
+            const ids = event.event_type.split(',').map(id => id.trim()).filter(id => id);
+            const names = ids.map(id => {
+              const termId = parseInt(id);
+              return termMapping[termId] || id; // Use name if found, otherwise keep ID
+            });
+            event.event_type_names = names.join(', '); // Add resolved names
+            event.event_type_original = event.event_type; // Keep original for filtering
+          } else {
+            event.event_type_names = 'general';
+          }
+        });
       }
 
       // Get total count (for pagination) - build count query with same filters
