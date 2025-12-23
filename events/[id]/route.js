@@ -3,8 +3,6 @@
 // Phase 1: RBAC authorization checks
 // [2025-12-05] - Phase 2: Recurrence support
 const { createClient } = require('@supabase/supabase-js');
-const { authorizeRequest } = require('../utils/rbac');
-const cache = require('../utils/cache');
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impva25wcmFoaHFkaHZkaHptdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTI3MTAsImV4cCI6MjA2NTIyODcxMH0.YYkEkYFWgd_4-OtgG47xj6b5MX_fu7zNQxrW9ymR8Xk';
@@ -12,27 +10,21 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cC
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = async (req, res) => {
-  try {
-    // Enable CORS - Set headers before any response
-    // [2025-01-XX] - Align headers with other endpoints to satisfy preflight
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-token, x-supabase-token, x-original-authorization');
-    res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
+  // Enable CORS - Set headers FIRST, before any other processing
+  // [2025-01-XX] - Align headers with other endpoints to satisfy preflight
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-token, x-supabase-token, x-original-authorization');
+  res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
 
-    // Handle preflight OPTIONS request - return early before any other processing
-    if (req.method === 'OPTIONS') {
-      return res.status(200).end();
-    }
-  } catch (error) {
-    console.error('[events/[id]] Error in OPTIONS/CORS setup:', error);
-    // Still set CORS headers even on error
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-      return res.status(200).end();
-    }
-    return res.status(500).json({ error: 'Internal server error', message: error.message });
+  // Handle preflight OPTIONS request - return early before loading any modules
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
+
+  // Lazy load modules only after OPTIONS is handled
+  const { authorizeRequest } = require('../utils/rbac');
+  const cache = require('../utils/cache');
 
   // Extract ID from URL path
   const id = req.query.id;
