@@ -12,14 +12,16 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cC
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = async (req, res) => {
-  // Enable CORS
+  // Enable CORS - Set headers before any response
   // [2025-01-XX] - Align headers with other endpoints to satisfy preflight
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-token, x-supabase-token, x-original-authorization');
+  res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
 
+  // Handle preflight OPTIONS request
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return res.status(200).json({});
   }
 
   // Extract ID from URL path
