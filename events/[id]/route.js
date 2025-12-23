@@ -17,14 +17,15 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  // Lazy init Supabase client after OPTIONS handled
-  const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.supabase.co';
-  const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impva25wcmFoaHFkaHZkaHptdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTI3MTAsImV4cCI6MjA2NTIyODcxMH0.YYkEkYFWgd_4-OtgG47xj6b5MX_fu7zNQxrW9ymR8Xk';
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  try {
+    // Lazy init Supabase client after OPTIONS handled
+    const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.supabase.co';
+    const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impva25wcmFoaHFkaHZkaHptdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTI3MTAsImV4cCI6MjA2NTIyODcxMH0.YYkEkYFWgd_4-OtgG47xj6b5MX_fu7zNQxrW9ymR8Xk';
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Lazy load modules only after OPTIONS is handled
-  const { authorizeRequest } = require('../utils/rbac');
-  const cache = require('../utils/cache');
+    // Lazy load modules only after OPTIONS is handled
+    const { authorizeRequest } = require('../utils/rbac');
+    const cache = require('../utils/cache');
 
   // Extract ID from URL path
   const id = req.query.id;
@@ -247,5 +248,13 @@ module.exports = async (req, res) => {
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
+  } catch (error) {
+    // Ensure CORS headers are sent even on errors
+    console.error('[events/[id]] Unhandled error:', error);
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message 
+    });
+  }
 };
 
