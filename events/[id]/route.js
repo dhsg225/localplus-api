@@ -25,7 +25,14 @@ module.exports = async (req, res) => {
 
     // Lazy load modules only after OPTIONS is handled
     const { authorizeRequest } = require('../utils/rbac');
-    const cache = require('../utils/cache');
+    // Cache module - optional, only used for recurrence cache clearing
+    let cache;
+    try {
+      cache = require('../utils/cache');
+    } catch (err) {
+      console.warn('[events/[id]] Cache module not found, cache operations will be skipped');
+      cache = { clearEventCache: () => {} }; // No-op fallback
+    }
 
   // Extract ID from URL path
   const id = req.query.id;
