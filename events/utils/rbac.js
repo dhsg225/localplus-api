@@ -230,7 +230,7 @@ async function canPerformAction(supabase, userId, eventId, action) {
  * @returns {Promise<{authorized: boolean, user: object|null, error: string|null}>}
  */
 async function authorizeRequest(req, eventId = null, action = 'view') {
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.authorization || req.headers['x-user-token'] || req.headers['x-supabase-token'] || req.headers['x-original-authorization'];
   const { user, error: authError } = await getAuthenticatedUser(authHeader);
 
   if (authError || !user) {
@@ -238,8 +238,17 @@ async function authorizeRequest(req, eventId = null, action = 'view') {
   }
 
   // [2025-01-XX] - Events superuser bypasses all permission checks
-  const supabase = createClient(supabaseUrl, supabaseKey);
-  const isSuperuser = await isEventsSuperuser(supabase, user.id);
+  // Use service role client for role checks to bypass RLS (same pattern as /api/events/all)
+  const roleCheckClient = supabaseServiceRoleKey
+    ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false
+        }
+      })
+    : createClient(supabaseUrl, supabaseKey);
+  
+  const isSuperuser = await isEventsSuperuser(roleCheckClient, user.id);
   if (isSuperuser) {
     return { authorized: true, user, error: null };
   }
@@ -249,7 +258,8 @@ async function authorizeRequest(req, eventId = null, action = 'view') {
     return { authorized: true, user, error: null };
   }
 
-  // Check event-specific permissions
+  // Check event-specific permissions (use regular client for event queries)
+  const supabase = createClient(supabaseUrl, supabaseKey);
   const hasAccess = await canPerformAction(supabase, user.id, eventId, action);
 
   if (!hasAccess) {
