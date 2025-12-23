@@ -21,10 +21,10 @@ module.exports = async (req, res) => {
     // Lazy init Supabase client after OPTIONS handled
     const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.supabase.co';
     const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impva25wcmFoaHFkaHZkaHptdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTI3MTAsImV4cCI6MjA2NTIyODcxMH0.YYkEkYFWgd_4-OtgG47xj6b5MX_fu7zNQxrW9ymR8Xk';
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE || null;
 
     // Lazy load modules only after OPTIONS is handled
-    const { authorizeRequest } = require('../utils/rbac');
+    const { authorizeRequest, isEventsSuperuser } = require('../utils/rbac');
     // Cache module - optional, only used for recurrence cache clearing
     let cache;
     try {
@@ -49,8 +49,9 @@ module.exports = async (req, res) => {
 
       // Allow unauthenticated access to published events
       if (!authorized && !user) {
-        // Check if event is published
-        const { data: event } = await supabase
+        // Check if event is published (use anon client)
+        const anonClient = createClient(supabaseUrl, supabaseKey);
+        const { data: event } = await anonClient
           .from('events')
           .select('*')
           .eq('id', id)
@@ -71,7 +72,19 @@ module.exports = async (req, res) => {
         return res.status(403).json({ error: authError || 'Insufficient permissions' });
       }
 
-      const { data: event, error } = await supabase
+      // [2025-01-XX] - Use service role client for superusers to bypass RLS (same pattern as /api/events/all)
+      let queryClient;
+      if (supabaseServiceRoleKey && user) {
+        const roleCheckClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
+          auth: { persistSession: false, autoRefreshToken: false }
+        });
+        const userIsSuperuser = await isEventsSuperuser(roleCheckClient, user.id);
+        queryClient = userIsSuperuser ? roleCheckClient : createClient(supabaseUrl, supabaseKey);
+      } else {
+        queryClient = createClient(supabaseUrl, supabaseKey);
+      }
+
+      const { data: event, error } = await queryClient
         .from('events')
         .select('*')
         .eq('id', id)
@@ -87,7 +100,7 @@ module.exports = async (req, res) => {
 
       // [2025-12-05] - Fetch recurrence rule if event is recurring
       if (event && event.is_recurring) {
-        const { data: rule, error: ruleError } = await supabase
+        const { data: rule, error: ruleError } = await queryClient
           .from('recurrence_rules')
           .select('*')
           .eq('event_id', id)
