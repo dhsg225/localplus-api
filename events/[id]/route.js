@@ -13,9 +13,10 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = async (req, res) => {
   // Enable CORS
+  // [2025-01-XX] - Align headers with other endpoints to satisfy preflight
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-token, x-supabase-token, x-original-authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
