@@ -9,7 +9,12 @@ const cors = require('cors')({
     origin: true, // Reflect request origin
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-user-token', 'x-supabase-token', 'x-original-authorization']
+    optionsSuccessStatus: 200, // For legacy browser support
+    allowedHeaders: [
+        'Content-Type', 'Authorization', 'x-user-token', 'x-supabase-token', 'x-original-authorization',
+        'X-User-Token', 'X-Supabase-Token', 'X-Original-Authorization',
+        'Access-Control-Allow-Origin', 'Origin', 'Accept', 'X-Requested-With'
+    ]
 });
 
 // Helper to run middleware
@@ -43,8 +48,7 @@ module.exports = async (req, res) => {
     // Run CORS middleware
     await runMiddleware(req, res, cors);
 
-
-    // Authentication - Check standard and workaround headers
+    // Authentication
     const authHeader = req.headers.authorization ||
         req.headers['x-user-token'] ||
         req.headers['x-supabase-token'] ||
@@ -75,137 +79,151 @@ module.exports = async (req, res) => {
 
             if (error) {
                 console.error('[Media API] Error fetching media:', error);
-                return res.status(500).json({ error: 'Failed to fetch media' });
+                throw error;
             }
 
             return res.status(200).json({
                 success: true,
-                data: media,
-                pagination: {
-                    total: count,
-                    limit: parseInt(limit),
-                    offset: parseInt(offset),
-                    hasMore: (parseInt(offset) + parseInt(limit)) < count
-                }
+                media,
+                count,
+                limit: parseInt(limit),
+                offset: parseInt(offset)
             });
-        } catch (err) {
-            console.error('[Media API] List error:', err);
-            return res.status(500).json({ error: 'Internal server error' });
+        } catch (error) {
+            console.error('Error in GET /media:', error);
+            return res.status(500).json({ error: error.message });
         }
     }
 
-    // POST /api/media/upload - Handle file upload
+    // POST /api/media - Upload media
     if (req.method === 'POST') {
         return new Promise((resolve) => {
-            const busboy = Busboy({ headers: req.headers });
-            let fileBuffer = null;
-            let filename = '';
-            let mimeType = '';
-            let fields = {};
+            try {
+                const busboy = Busboy({ headers: req.headers });
+                let fileBuffer = null;
+                let filename = '';
+                let mimeType = '';
+                let fields = {};
 
-            busboy.on('file', (fieldname, file, info) => {
-                const { filename: rawFilename, mimeType: rawMimeType } = info;
-                filename = rawFilename;
-                mimeType = rawMimeType;
+                busboy.on('file', (fieldname, file, info) => {
+                    const { filename: rawFilename, mimeType: rawMimeType } = info;
+                    filename = rawFilename;
+                    mimeType = rawMimeType;
 
-                const chunks = [];
-                file.on('data', (data) => chunks.push(data));
-                file.on('end', () => {
-                    fileBuffer = Buffer.concat(chunks);
+                    const chunks = [];
+                    file.on('data', (data) => chunks.push(data));
+                    file.on('end', () => {
+                        fileBuffer = Buffer.concat(chunks);
+                    });
                 });
-            });
 
-            busboy.on('field', (fieldname, val) => {
-                fields[fieldname] = val;
-            });
+                busboy.on('field', (fieldname, val) => {
+                    fields[fieldname] = val;
+                });
 
-            busboy.on('finish', async () => {
-                try {
-                    if (!fileBuffer) {
-                        res.status(400).json({ error: 'No file uploaded' });
-                        return resolve();
+                busboy.on('finish', async () => {
+                    try {
+                        if (!fileBuffer) {
+                            res.status(400).json({ error: 'No file uploaded' });
+                            return resolve();
+                        }
+
+                        // Generate unique filename
+                        const timestamp = Date.now();
+                        const cleanFilename = filename.replace(/[^a-zA-Z0-9.]/g, '_');
+                        const finalFilename = `${timestamp}_${cleanFilename}`;
+                        const datePath = new Date().toISOString().slice(0, 7); // YYYY-MM
+                        const bunnyPath = `event-photos/${datePath}/${finalFilename}`;
+
+                        // Upload to Bunny.net
+                        const bunnyUrl = `https://${bunnyHostname}/${bunnyStorageZone}/${bunnyPath}`;
+                        console.log(`[Media API] Uploading to Bunny: ${bunnyUrl}`);
+
+                        const bunnyResponse = await fetch(bunnyUrl, {
+                            method: 'PUT',
+                            headers: {
+                                'AccessKey': bunnyApiKey,
+                                'Content-Type': mimeType,
+                            },
+                            body: fileBuffer
+                        });
+
+                        if (!bunnyResponse.ok) {
+                            const errorText = await bunnyResponse.text();
+                            console.error('[Media API] Bunny upload failed:', bunnyResponse.status, errorText);
+                            res.status(500).json({ error: 'Failed to upload to storage provider' });
+                            return resolve();
+                        }
+
+                        // Save to Supabase
+                        const cdn_url = `${bunnyCdnUrl}/${bunnyPath}`;
+                        const mediaData = {
+                            filename: finalFilename,
+                            bunny_path: bunnyPath,
+                            cdn_url: cdn_url,
+                            uploaded_by: user.id,
+                            mime_type: mimeType,
+                            filesize: fileBuffer.length,
+                            business_id: fields.business_id || null
+                        };
+
+                        const { data: mediaRecord, error: dbError } = await supabaseClient
+                            .from('event_media')
+                            .insert([mediaData])
+                            .select()
+                            .single();
+
+                        if (dbError) {
+                            console.error('[Media API] Database error:', dbError);
+                        }
+
+                        res.status(200).json({
+                            success: true,
+                            data: mediaRecord || mediaData
+                        });
+                        resolve();
+                    } catch (err) {
+                        console.error('[Media API] Upload processing error:', err);
+                        res.status(500).json({ error: 'Internal server error during upload' });
+                        resolve();
                     }
+                });
 
-                    // Generate unique filename to avoid collisions
-                    const timestamp = Date.now();
-                    const cleanFilename = filename.replace(/[^a-zA-Z0-9.]/g, '_');
-                    const finalFilename = `${timestamp}_${cleanFilename}`;
-                    const datePath = new Date().toISOString().slice(0, 7); // YYYY-MM
-                    const bunnyPath = `event-photos/${datePath}/${finalFilename}`;
-
-                    // Upload to Bunny.net Storage
-                    const bunnyUrl = `https://${bunnyHostname}/${bunnyStorageZone}/${bunnyPath}`;
-
-                    console.log(`[Media API] Uploading to Bunny: ${bunnyUrl}`);
-
-                    const bunnyResponse = await fetch(bunnyUrl, {
-                        method: 'PUT',
-                        headers: {
-                            'AccessKey': bunnyApiKey,
-                            'Content-Type': mimeType,
-                        },
-                        body: fileBuffer
-                    });
-
-                    if (!bunnyResponse.ok) {
-                        const errorText = await bunnyResponse.text();
-                        console.error('[Media API] Bunny upload failed:', bunnyResponse.status, errorText);
-                        res.status(500).json({ error: 'Failed to upload to storage provider' });
-                        return resolve();
-                    }
-
-                    // Save metadata to Supabase
-                    const cdn_url = `${bunnyCdnUrl}/${bunnyPath}`;
-                    const mediaData = {
-                        filename: finalFilename,
-                        bunny_path: bunnyPath,
-                        cdn_url: cdn_url,
-                        uploaded_by: user.id,
-                        mime_type: mimeType,
-                        filesize: fileBuffer.length,
-                        business_id: fields.business_id || null
-                    };
-
-                    const { data: mediaRecord, error: dbError } = await supabaseClient
-                        .from('event_media')
-                        .insert([mediaData])
-                        .select()
-                        .single();
-
-                    if (dbError) {
-                        console.error('[Media API] Database error:', dbError);
-                        // Even if DB fails, the file is on Bunny. We return success but log error.
-                        // Or we could try to delete from Bunny, but usually better to have the file.
-                    }
-
-                    res.status(200).json({
-                        success: true,
-                        data: mediaRecord || mediaData
-                    });
+                busboy.on('error', (err) => {
+                    console.error('[Media API] Busboy error:', err);
+                    res.status(500).json({ error: 'File upload failed' });
                     resolve();
-                } catch (err) {
-                    console.error('[Media API] Upload processing error:', err);
-                    res.status(500).json({ error: 'Internal server error' });
-                    resolve();
-                }
-            });
+                });
 
-            req.pipe(busboy);
+                req.pipe(busboy);
+
+            } catch (err) {
+                console.error('[Media API] Setup error:', err);
+                res.status(500).json({ error: 'Failed to setup upload' });
+                resolve();
+            }
         });
     }
 
     // DELETE /api/media/:id - Delete media
     if (req.method === 'DELETE') {
         try {
-            // Extract media ID from URL path
-            const urlParts = req.url.split('/');
-            const mediaId = urlParts[urlParts.length - 1].split('?')[0];
+            // Extract media ID: prefer query param (from rewrite), fallback to URL parsing
+            let mediaId = req.query.id;
 
-            if (!mediaId || mediaId === 'media') {
+            if (!mediaId) {
+                const urlParts = req.url.split('/');
+                const lastPart = urlParts[urlParts.length - 1].split('?')[0];
+                if (lastPart && lastPart !== 'media') {
+                    mediaId = lastPart;
+                }
+            }
+
+            if (!mediaId) {
                 return res.status(400).json({ error: 'Media ID required' });
             }
 
-            // Get media record from database
+            // Get media record
             const { data: mediaRecord, error: fetchError } = await supabaseClient
                 .from('event_media')
                 .select('*')
@@ -217,39 +235,36 @@ module.exports = async (req, res) => {
                 return res.status(404).json({ error: 'Media not found' });
             }
 
-            // Check if user owns this media or is superuser
+            // Permission Check
             if (mediaRecord.uploaded_by !== user.id) {
-                // Check if user is superuser
                 const { data: userRoles } = await supabaseClient
                     .from('user_roles')
                     .select('role')
                     .eq('user_id', user.id)
                     .in('role', ['super_admin', 'events_superuser'])
                     .eq('is_active', true)
-                    .limit(1);
+                //.limit(1); // limit not always needed here if using .in
 
-                if (!userRoles || userRoles.length === 0) {
+                const hasRole = userRoles && userRoles.length > 0;
+                if (!hasRole) {
                     return res.status(403).json({ error: 'Permission denied' });
                 }
             }
 
-            // Delete from Bunny.net Storage
+            // Delete from Bunny.net
             const bunnyUrl = `https://${bunnyHostname}/${bunnyStorageZone}/${mediaRecord.bunny_path}`;
             console.log(`[Media API] Deleting from Bunny: ${bunnyUrl}`);
 
             const bunnyResponse = await fetch(bunnyUrl, {
                 method: 'DELETE',
-                headers: {
-                    'AccessKey': bunnyApiKey
-                }
+                headers: { 'AccessKey': bunnyApiKey }
             });
 
             if (!bunnyResponse.ok) {
-                console.error('[Media API] Bunny delete failed:', bunnyResponse.status);
-                // Continue anyway - we'll delete from DB even if Bunny fails
+                console.warn('[Media API] Bunny delete warning:', bunnyResponse.status);
             }
 
-            // Delete from database
+            // Delete from Database
             const { error: deleteError } = await supabaseClient
                 .from('event_media')
                 .delete()
@@ -264,6 +279,7 @@ module.exports = async (req, res) => {
                 success: true,
                 message: 'Media deleted successfully'
             });
+
         } catch (err) {
             console.error('[Media API] Delete error:', err);
             return res.status(500).json({ error: 'Internal server error' });

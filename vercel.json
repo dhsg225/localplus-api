@@ -101,7 +101,7 @@
     },
     {
       "source": "/api/media/:id",
-      "destination": "/media/route.js"
+      "destination": "/media/route.js?id=:id"
     },
     {
       "source": "/api/news/:city",
