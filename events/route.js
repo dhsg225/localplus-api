@@ -18,7 +18,7 @@ async function getSupabaseClient(authToken = null) {
       autoRefreshToken: false
     }
   });
-  
+
   // Set the session if token provided (required for RLS policies to work)
   if (authToken) {
     try {
@@ -35,7 +35,7 @@ async function getSupabaseClient(authToken = null) {
       console.warn('[API] Error setting auth session:', err.message);
     }
   }
-  
+
   return client;
 }
 
@@ -76,12 +76,12 @@ module.exports = async (req, res) => {
       // This allows superusers to see all events even when status=published is in query
       let isSuperuser = false;
       let isSuperAdmin = false;
-      
+
       if (authHeader) {
         const { user } = await getAuthenticatedUser(authHeader);
         if (user) {
           isSuperuser = await isEventsSuperuser(supabaseClient, user.id);
-          
+
           // Check for super_admin role
           const { data: userRoles, error: roleError } = await supabaseClient
             .from('user_roles')
@@ -92,7 +92,7 @@ module.exports = async (req, res) => {
             .limit(1);
 
           isSuperAdmin = userRoles && userRoles.length > 0;
-          
+
           console.log('[API] User ID:', user.id);
           console.log('[API] Is events superuser:', isSuperuser);
           console.log('[API] Is super admin:', isSuperAdmin);
@@ -137,8 +137,8 @@ module.exports = async (req, res) => {
 
       const { data: events, error } = await query;
 
-      console.log('[API] Query result:', { 
-        eventsCount: events?.length || 0, 
+      console.log('[API] Query result:', {
+        eventsCount: events?.length || 0,
         error: error?.message || null,
         hasData: !!events
       });
@@ -153,16 +153,30 @@ module.exports = async (req, res) => {
       const dateRangeStart = startDate || new Date().toISOString().split('T')[0];
       const dateRangeEnd = endDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // Default: 1 year ahead
 
+      // Fetch all recurrence rules in one go for all recurring events found
+      const recurringEventIds = (events || [])
+        .filter(e => e.is_recurring)
+        .map(e => e.id);
+
+      let recurrenceRules = [];
+      if (recurringEventIds.length > 0) {
+        const { data: rules, error: rulesError } = await supabaseClient
+          .from('recurrence_rules')
+          .select('*')
+          .in('event_id', recurringEventIds);
+
+        if (!rulesError) {
+          recurrenceRules = rules;
+        } else {
+          console.error('[API] Error fetching recurrence rules:', rulesError);
+        }
+      }
+
       for (const event of events || []) {
         if (event.is_recurring) {
-          // Fetch recurrence rule
-          const { data: rule, error: ruleError } = await supabaseClient
-            .from('recurrence_rules')
-            .select('*')
-            .eq('event_id', event.id)
-            .single();
+          const rule = recurrenceRules.find(r => r.event_id === event.id);
 
-          if (rule && !ruleError) {
+          if (rule) {
             // Check cache first
             const cacheKey = getCacheKey(event.id, dateRangeStart, dateRangeEnd);
             let occurrences = cache.get(cacheKey);
@@ -177,7 +191,7 @@ module.exports = async (req, res) => {
             // Add occurrences to results
             allResults.push(...occurrences);
           } else {
-            // No rule found, add parent event as-is
+            // No rule found (or error fetching), add parent event as-is
             allResults.push(event);
           }
         } else {
@@ -245,21 +259,21 @@ module.exports = async (req, res) => {
 
       // Validate required fields
       if (!eventData.title || !eventData.start_time || !eventData.end_time) {
-        return res.status(400).json({ 
-          error: 'Title, start_time, and end_time are required' 
+        return res.status(400).json({
+          error: 'Title, start_time, and end_time are required'
         });
       }
 
       // Validate time range
       if (new Date(eventData.end_time) <= new Date(eventData.start_time)) {
-        return res.status(400).json({ 
-          error: 'end_time must be after start_time' 
+        return res.status(400).json({
+          error: 'end_time must be after start_time'
         });
       }
 
       // [2025-01-XX] - Events superuser can create events for any business
       const isSuperuser = await isEventsSuperuser(supabaseClient, user.id);
-      
+
       // Phase 1: Verify user has access to business if business_id provided
       if (eventData.business_id && !isSuperuser) {
         const { data: userBusiness } = await supabaseClient
@@ -271,8 +285,8 @@ module.exports = async (req, res) => {
           .single();
 
         if (!userBusiness) {
-          return res.status(403).json({ 
-            error: 'You do not have access to this business' 
+          return res.status(403).json({
+            error: 'You do not have access to this business'
           });
         }
       }
