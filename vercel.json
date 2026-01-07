@@ -42,6 +42,10 @@
       "use": "@vercel/node"
     },
     {
+      "src": "media/route.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "news/[city].js",
       "use": "@vercel/node"
     },
@@ -90,6 +94,10 @@
     {
       "source": "/api/categories",
       "destination": "/categories/route.js"
+    },
+    {
+      "source": "/api/media",
+      "destination": "/media/route.js"
     },
     {
       "source": "/api/news/:city",
