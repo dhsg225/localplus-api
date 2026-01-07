@@ -295,6 +295,14 @@ module.exports = async (req, res) => {
       const recurrenceRules = eventData.recurrence_rules;
       delete eventData.recurrence_rules; // Remove from event data
 
+      // Sanitize UUID fields (handle empty strings found in frontend request)
+      const uuidFields = ['organizer_id', 'location_id', 'business_id'];
+      uuidFields.forEach(field => {
+        if (eventData[field] === '') {
+          eventData[field] = null;
+        }
+      });
+
       // Set created_by
       eventData.created_by = user.id;
       eventData.status = eventData.status || 'draft';
