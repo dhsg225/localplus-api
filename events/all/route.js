@@ -10,8 +10,8 @@ const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.su
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impva25wcmFoaHFkaHZkaHptdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTI3MTAsImV4cCI6MjA2NTIyODcxMH0.YYkEkYFWgd_4-OtgG47xj6b5MX_fu7zNQxrW9ymR8Xk';
 // [2025-01-XX] - Read service role key from environment
 // Try multiple possible env var names (Vercel might use different names)
-const supabaseServiceRoleKey = 
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 
+const supabaseServiceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
   process.env.SUPABASE_SERVICE_KEY ||
   process.env.SUPABASE_SERVICE_ROLE ||
   null;
@@ -41,9 +41,9 @@ async function getSupabaseClient(authToken = null) {
       }
     } : {}
   };
-  
+
   const client = createClient(supabaseUrl, supabaseKey, clientOptions);
-  
+
   // If auth token provided, set session for auth.uid() to work in RLS policies
   if (authToken) {
     try {
@@ -53,14 +53,14 @@ async function getSupabaseClient(authToken = null) {
         console.warn('[Superuser API] Error getting user from token:', getUserError.message);
         return client; // Return client anyway, headers might work
       }
-      
+
       if (user) {
         // Set session - this is critical for RLS auth.uid() to work
         const { data: sessionData, error: sessionError } = await client.auth.setSession({
           access_token: authToken,
           refresh_token: authToken
         });
-        
+
         if (sessionError) {
           console.warn('[Superuser API] Error setting session:', sessionError.message);
         } else if (sessionData?.session) {
@@ -76,7 +76,7 @@ async function getSupabaseClient(authToken = null) {
       console.warn('[Superuser API] Exception setting auth session:', err.message);
     }
   }
-  
+
   return client;
 }
 
@@ -154,13 +154,13 @@ module.exports = async (req, res) => {
   console.log('[Superuser API] Service role key present:', !!supabaseServiceRoleKey);
   console.log('[Superuser API] Service role key length:', supabaseServiceRoleKey ? supabaseServiceRoleKey.length : 0);
   console.log('[Superuser API] Using service role for role check:', !!supabaseServiceRoleKey);
-  
+
   // Test query to see what roles exist for this user (with detailed error logging)
   const { data: allRoles, error: allRolesError } = await roleCheckClient
     .from('user_roles')
     .select('role, is_active, user_id')
     .eq('user_id', user.id);
-  
+
   if (allRolesError) {
     console.error('[Superuser API] ERROR querying user_roles:', {
       code: allRolesError.code,
@@ -172,18 +172,18 @@ module.exports = async (req, res) => {
     console.log('[Superuser API] All roles for user:', JSON.stringify(allRoles, null, 2));
     console.log('[Superuser API] Role count:', allRoles?.length || 0);
   }
-  
+
   // Check each role individually with detailed logging
   const userIsSuperAdmin = await isSuperAdmin(roleCheckClient, user.id);
   const userIsEventsSuperuser = await isEventsSuperuser(roleCheckClient, user.id);
-  
+
   console.log('[Superuser API] userIsSuperAdmin:', userIsSuperAdmin);
   console.log('[Superuser API] userIsEventsSuperuser:', userIsEventsSuperuser);
-  
+
   // Additional verification: Check if events_superuser exists in allRoles
   const hasEventsSuperuserInAllRoles = allRoles?.some(r => r.role === 'events_superuser' && r.is_active);
   console.log('[Superuser API] events_superuser found in allRoles query:', hasEventsSuperuserInAllRoles);
-  
+
   if (!userIsSuperAdmin && !userIsEventsSuperuser) {
     const debugInfo = {
       userId: user.id,
@@ -201,24 +201,24 @@ module.exports = async (req, res) => {
       hasEventsSuperuserInAllRoles: allRoles?.some(r => r.role === 'events_superuser' && r.is_active) || false,
       roleCheckClientType: supabaseServiceRoleKey ? 'service_role' : 'anon_with_session'
     };
-    
+
     console.log('[Superuser API] ❌ Access denied - neither super_admin nor events_superuser');
     console.log('[Superuser API] Debug info:', JSON.stringify(debugInfo, null, 2));
-    
+
     // [2025-01-XX] - Return detailed debug info to help diagnose the issue
-    const response = { 
+    const response = {
       error: 'Super admin access required',
       debug: debugInfo,
       message: 'Token validation passed, but role check failed. See debug object for details.'
     };
-    
+
     console.log('[Superuser API] Returning 403 with debug info:', JSON.stringify(response, null, 2));
     return res.status(403).json(response);
   }
 
   // Create Supabase client with user's auth token for RLS on events queries
   const supabaseClient = await getSupabaseClient(authToken);
-  
+
   console.log('[Superuser API] Access granted');
 
   // GET /api/events/all - List all events with filters, pagination, sorting
@@ -228,7 +228,7 @@ module.exports = async (req, res) => {
         // Pagination
         limit = '50',
         offset = '0',
-        
+
         // Filters
         city,
         businessId,
@@ -242,7 +242,7 @@ module.exports = async (req, res) => {
         onlyScraped,
         needsReview,
         search, // [2025-01-XX] - Server-side search query
-        
+
         // Sorting
         sortBy = 'start_time', // 'start_time', 'created_at', 'title'
         sortOrder = 'asc' // 'asc', 'desc'
@@ -339,18 +339,18 @@ module.exports = async (req, res) => {
         // [2025-12-14] - Use service role client for wp_term_mapping to bypass RLS if needed
         const termIdsArray = Array.from(allTermIds).map(id => parseInt(id)).filter(id => !isNaN(id));
         let termMapping = {};
-        
+
         if (termIdsArray.length > 0) {
           // Use service role client if available, otherwise use regular client
-          const mappingClient = supabaseServiceRoleKey 
+          const mappingClient = supabaseServiceRoleKey
             ? createClient(supabaseUrl, supabaseServiceRoleKey)
             : supabaseClient;
-          
+
           const { data: mappings, error: mappingError } = await mappingClient
             .from('wp_term_mapping')
             .select('term_id, name')
             .in('term_id', termIdsArray);
-          
+
           if (!mappingError && mappings) {
             mappings.forEach(m => {
               termMapping[m.term_id] = m.name;
@@ -382,7 +382,7 @@ module.exports = async (req, res) => {
 
       // Get total count (for pagination) - build count query with same filters
       let countQuery = supabaseClient.from('events').select('*', { count: 'exact', head: true });
-      
+
       // Apply same filters to count query
       if (businessId) countQuery = countQuery.eq('business_id', businessId);
       if (status) countQuery = countQuery.eq('status', status);
@@ -392,7 +392,7 @@ module.exports = async (req, res) => {
       if (endDate) countQuery = countQuery.lte('end_time', endDate);
       if (onlyUpcoming === 'true') countQuery = countQuery.gte('start_time', new Date().toISOString());
       if (onlyScraped === 'true') countQuery = countQuery.eq('status', 'scraped_draft');
-      
+
       const { count: totalCount } = await countQuery;
 
       return res.status(200).json({
@@ -435,6 +435,22 @@ module.exports = async (req, res) => {
       const updateData = req.body;
       const { reason, ...eventUpdates } = updateData; // Separate reason from event data
 
+      // Sanitize fields that are not in the 'events' table
+      const nonTableFields = ['recurrence_rules', 'organizer_name', 'id', 'created_at', 'updated_at', 'created_by'];
+      const recurrenceRules = eventUpdates.recurrence_rules;
+
+      nonTableFields.forEach(field => {
+        delete eventUpdates[field];
+      });
+
+      // Sanitize UUID fields (handle empty strings found in frontend request)
+      const uuidFields = ['organizer_id', 'location_id', 'business_id', 'calendar_id', 'primary_type_id', 'secondary_type_id'];
+      uuidFields.forEach(field => {
+        if (eventUpdates[field] === '') {
+          eventUpdates[field] = null;
+        }
+      });
+
       // Validation
       if (eventUpdates.start_time && eventUpdates.end_time) {
         if (new Date(eventUpdates.end_time) <= new Date(eventUpdates.start_time)) {
@@ -452,11 +468,59 @@ module.exports = async (req, res) => {
 
       if (updateError) {
         console.error('[Superuser API] Error updating event:', updateError);
-        return res.status(500).json({ error: 'Failed to update event' });
+        return res.status(500).json({
+          error: 'Failed to update event',
+          message: updateError.message,
+          details: updateError.details
+        });
+      }
+
+      // [2025-12-05] - Update recurrence rule if provided
+      if (recurrenceRules !== undefined) {
+        if (recurrenceRules === null) {
+          // Delete rules if null provided
+          await supabaseClient
+            .from('recurrence_rules')
+            .delete()
+            .eq('event_id', eventId);
+
+          await supabaseClient
+            .from('events')
+            .update({ is_recurring: false })
+            .eq('id', eventId);
+        } else {
+          // Upsert rules
+          const ruleData = {
+            event_id: eventId,
+            frequency: recurrenceRules.frequency,
+            interval: recurrenceRules.interval || 1,
+            byweekday: recurrenceRules.byweekday || null,
+            bymonthday: recurrenceRules.bymonthday || null,
+            bysetpos: recurrenceRules.bysetpos || null,
+            until: recurrenceRules.until || null,
+            count: recurrenceRules.count || null,
+            exceptions: recurrenceRules.exceptions || [],
+            additional_dates: recurrenceRules.additional_dates || [],
+            timezone: recurrenceRules.timezone || 'Asia/Bangkok'
+          };
+
+          const { error: ruleError } = await supabaseClient
+            .from('recurrence_rules')
+            .upsert([ruleData], { onConflict: 'event_id' });
+
+          if (ruleError) {
+            console.error('[Superuser API] Error updating recurrence rule:', ruleError);
+          } else {
+            await supabaseClient
+              .from('events')
+              .update({ is_recurring: true })
+              .eq('id', eventId);
+          }
+        }
       }
 
       // Determine changed fields
-      const changedFields = Object.keys(eventUpdates).filter(key => 
+      const changedFields = Object.keys(eventUpdates).filter(key =>
         JSON.stringify(currentEvent[key]) !== JSON.stringify(updatedEvent[key])
       );
 
@@ -480,7 +544,10 @@ module.exports = async (req, res) => {
 
     } catch (error) {
       console.error('[Superuser API] PATCH error:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({
+        error: 'Internal server error',
+        message: error.message
+      });
     }
   }
 
