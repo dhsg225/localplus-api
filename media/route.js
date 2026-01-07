@@ -4,7 +4,25 @@
 const { createClient } = require('@supabase/supabase-js');
 const { getAuthenticatedUser } = require('../events/utils/rbac');
 const Busboy = require('busboy');
-const fetch = require('node-fetch'); // Ensure node-fetch is available if Node < 18
+const fetch = require('node-fetch');
+const cors = require('cors')({
+    origin: true, // Reflect request origin
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-user-token', 'x-supabase-token', 'x-original-authorization']
+});
+
+// Helper to run middleware
+function runMiddleware(req, res, fn) {
+    return new Promise((resolve, reject) => {
+        fn(req, res, (result) => {
+            if (result instanceof Error) {
+                return reject(result);
+            }
+            return resolve(result);
+        });
+    });
+}
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impva25wcmFoaHFkaHZkaHptdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTI3MTAsImV4cCI6MjA2NTIyODcxMH0.YYkEkYFWgd_4-OtgG47xj6b5MX_fu7zNQxrW9ymR8Xk';
@@ -22,16 +40,9 @@ async function getSupabaseClient(authToken = null) {
 }
 
 module.exports = async (req, res) => {
-    // CORS Headers
-    const origin = req.headers.origin || '*';
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-token, x-supabase-token, x-original-authorization');
+    // Run CORS middleware
+    await runMiddleware(req, res, cors);
 
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
 
     // Authentication - Check standard and workaround headers
     const authHeader = req.headers.authorization ||
