@@ -31,8 +31,12 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
 
-    // Authentication
-    const authHeader = req.headers.authorization;
+    // Authentication - Check standard and workaround headers
+    const authHeader = req.headers.authorization ||
+        req.headers['x-user-token'] ||
+        req.headers['x-supabase-token'] ||
+        req.headers['x-original-authorization'];
+
     if (!authHeader) {
         return res.status(401).json({ error: 'Authentication required' });
     }
