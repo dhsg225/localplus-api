@@ -11,7 +11,7 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cC
 const bunnyApiKey = process.env.BUNNY_STORAGE_API_KEY || 'ca559c3a-87f0-49f0-be016fd32ece-1031-4d38';
 const bunnyStorageZone = 'localplus-photos';
 const bunnyHostname = 'sg.storage.bunnycdn.com';
-const bunnyCdnUrl = process.env.BUNNY_CDN_URL || 'https://photos.localplus.city';
+const bunnyCdnUrl = process.env.BUNNY_CDN_URL || 'https://localplus-photos.b-cdn.net';
 
 async function getSupabaseClient(authToken = null) {
     const clientOptions = {
