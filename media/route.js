@@ -2,7 +2,7 @@
 // Handles image uploads to Bunny.net and metadata storage in Supabase
 
 const { createClient } = require('@supabase/supabase-js');
-const { getAuthenticatedUser } = require('../utils/rbac');
+const { getAuthenticatedUser } = require('../events/utils/rbac');
 const Busboy = require('busboy');
 const fetch = require('node-fetch'); // Ensure node-fetch is available if Node < 18
 
