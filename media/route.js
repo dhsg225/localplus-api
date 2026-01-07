@@ -24,7 +24,7 @@ async function getSupabaseClient(authToken = null) {
 module.exports = async (req, res) => {
     // CORS Headers
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-token, x-supabase-token, x-original-authorization');
 
     if (req.method === 'OPTIONS') {
@@ -179,6 +179,82 @@ module.exports = async (req, res) => {
 
             req.pipe(busboy);
         });
+    }
+
+    // DELETE /api/media/:id - Delete media
+    if (req.method === 'DELETE') {
+        try {
+            // Extract media ID from URL path
+            const urlParts = req.url.split('/');
+            const mediaId = urlParts[urlParts.length - 1].split('?')[0];
+
+            if (!mediaId || mediaId === 'media') {
+                return res.status(400).json({ error: 'Media ID required' });
+            }
+
+            // Get media record from database
+            const { data: mediaRecord, error: fetchError } = await supabaseClient
+                .from('event_media')
+                .select('*')
+                .eq('id', mediaId)
+                .single();
+
+            if (fetchError || !mediaRecord) {
+                console.error('[Media API] Media not found:', fetchError);
+                return res.status(404).json({ error: 'Media not found' });
+            }
+
+            // Check if user owns this media or is superuser
+            if (mediaRecord.uploaded_by !== user.id) {
+                // Check if user is superuser
+                const { data: userRoles } = await supabaseClient
+                    .from('user_roles')
+                    .select('role')
+                    .eq('user_id', user.id)
+                    .in('role', ['super_admin', 'events_superuser'])
+                    .eq('is_active', true)
+                    .limit(1);
+
+                if (!userRoles || userRoles.length === 0) {
+                    return res.status(403).json({ error: 'Permission denied' });
+                }
+            }
+
+            // Delete from Bunny.net Storage
+            const bunnyUrl = `https://${bunnyHostname}/${bunnyStorageZone}/${mediaRecord.bunny_path}`;
+            console.log(`[Media API] Deleting from Bunny: ${bunnyUrl}`);
+
+            const bunnyResponse = await fetch(bunnyUrl, {
+                method: 'DELETE',
+                headers: {
+                    'AccessKey': bunnyApiKey
+                }
+            });
+
+            if (!bunnyResponse.ok) {
+                console.error('[Media API] Bunny delete failed:', bunnyResponse.status);
+                // Continue anyway - we'll delete from DB even if Bunny fails
+            }
+
+            // Delete from database
+            const { error: deleteError } = await supabaseClient
+                .from('event_media')
+                .delete()
+                .eq('id', mediaId);
+
+            if (deleteError) {
+                console.error('[Media API] Database delete error:', deleteError);
+                return res.status(500).json({ error: 'Failed to delete media record' });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: 'Media deleted successfully'
+            });
+        } catch (err) {
+            console.error('[Media API] Delete error:', err);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
