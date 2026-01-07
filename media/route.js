@@ -84,10 +84,13 @@ module.exports = async (req, res) => {
 
             return res.status(200).json({
                 success: true,
-                media,
-                count,
-                limit: parseInt(limit),
-                offset: parseInt(offset)
+                data: media,
+                pagination: {
+                    total: count,
+                    limit: parseInt(limit),
+                    offset: parseInt(offset),
+                    hasMore: (parseInt(offset) + parseInt(limit)) < count
+                }
             });
         } catch (error) {
             console.error('Error in GET /media:', error);
