@@ -31,6 +31,9 @@ function runMiddleware(req, res, fn) {
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impva25wcmFoaHFkaHZkaHptdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTI3MTAsImV4cCI6MjA2NTIyODcxMH0.YYkEkYFWgd_4-OtgG47xj6b5MX_fu7zNQxrW9ymR8Xk';
+// Try multiple env vars for service key
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+
 const bunnyApiKey = process.env.BUNNY_STORAGE_API_KEY || 'ca559c3a-87f0-49f0-be016fd32ece-1031-4d38';
 const bunnyStorageZone = 'localplus-photos';
 const bunnyHostname = 'sg.storage.bunnycdn.com';
@@ -42,6 +45,17 @@ async function getSupabaseClient(authToken = null) {
         global: authToken ? { headers: { Authorization: `Bearer ${authToken}` } } : {}
     };
     return createClient(supabaseUrl, supabaseKey, clientOptions);
+}
+
+// Get admin client for privileged operations (bypassing RLS)
+async function getSupabaseAdmin() {
+    if (!supabaseServiceRoleKey) {
+        // Fallback for local dev if key not available (will warn later)
+        return null;
+    }
+    return createClient(supabaseUrl, supabaseServiceRoleKey, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    });
 }
 
 module.exports = async (req, res) => {
@@ -84,7 +98,7 @@ module.exports = async (req, res) => {
 
             return res.status(200).json({
                 success: true,
-                data: media,
+                data: media, // Use 'data' key for frontend compatibility
                 pagination: {
                     total: count,
                     limit: parseInt(limit),
@@ -226,7 +240,7 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ error: 'Media ID required' });
             }
 
-            // Get media record
+            // Get media record (as user, to check visibility)
             const { data: mediaRecord, error: fetchError } = await supabaseClient
                 .from('event_media')
                 .select('*')
@@ -245,8 +259,7 @@ module.exports = async (req, res) => {
                     .select('role')
                     .eq('user_id', user.id)
                     .in('role', ['super_admin', 'events_superuser'])
-                    .eq('is_active', true)
-                //.limit(1); // limit not always needed here if using .in
+                    .eq('is_active', true);
 
                 const hasRole = userRoles && userRoles.length > 0;
                 if (!hasRole) {
@@ -267,8 +280,14 @@ module.exports = async (req, res) => {
                 console.warn('[Media API] Bunny delete warning:', bunnyResponse.status);
             }
 
-            // Delete from Database
-            const { error: deleteError } = await supabaseClient
+            // Delete from Database: Use Admin Client if available to bypass RLS
+            let adminClient = await getSupabaseAdmin();
+            if (!adminClient) {
+                console.warn('[Media API] Service Role Key missing, falling back to user client');
+                adminClient = supabaseClient;
+            }
+
+            const { error: deleteError } = await adminClient
                 .from('event_media')
                 .delete()
                 .eq('id', mediaId);
