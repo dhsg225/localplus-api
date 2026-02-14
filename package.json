@@ -1,6 +1,6 @@
 {
   "name": "localplus-api",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "LocalPlus API - Shared API services for all LocalPlus applications",
   "private": true,
   "type": "commonjs",
