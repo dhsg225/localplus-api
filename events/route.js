@@ -215,8 +215,12 @@ module.exports = async (req, res) => {
         });
       }
 
-      // Sort by start_time
-      filteredResults.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+      // [2026-02-01] - Sort by start_time (respecting sortOrder)
+      const sortDir = req.query.sortOrder === 'desc' ? -1 : 1;
+      filteredResults.sort((a, b) => {
+        const diff = new Date(a.start_time) - new Date(b.start_time);
+        return diff * sortDir;
+      });
 
       // Apply pagination to final results
       const paginatedResults = filteredResults.slice(

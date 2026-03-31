@@ -1,0 +1,10 @@
+{
+  "name": "localplus-api-news",
+  "version": "1.0.0",
+  "description": "LocalPlus News API - Google Cloud Function",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  }
+}
+

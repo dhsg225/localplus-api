@@ -1,0 +1,84 @@
+swagger: '2.0'
+info:
+  title: LocalPlus API
+  description: LocalPlus API Gateway
+  version: 1.0.0
+host: api.localplus.city
+schemes:
+  - https
+produces:
+  - application/json
+paths:
+  /api/auth:
+    get:
+      operationId: getAuth
+      x-google-backend:
+        address: https://us-central1-localplus-api.cloudfunctions.net/localplus-api-auth
+      responses:
+        '200':
+          description: Success
+    post:
+      operationId: postAuth
+      x-google-backend:
+        address: https://us-central1-localplus-api.cloudfunctions.net/localplus-api-auth
+      responses:
+        '200':
+          description: Success
+    delete:
+      operationId: deleteAuth
+      x-google-backend:
+        address: https://us-central1-localplus-api.cloudfunctions.net/localplus-api-auth
+      responses:
+        '200':
+          description: Success
+    options:
+      operationId: optionsAuth
+      x-google-backend:
+        address: https://us-central1-localplus-api.cloudfunctions.net/localplus-api-auth
+      responses:
+        '200':
+          description: Success
+
+  /api/events:
+    get:
+      operationId: getEvents
+      x-google-backend:
+        address: https://us-central1-localplus-api.cloudfunctions.net/localplus-api-events
+      responses:
+        '200':
+          description: Success
+          schema:
+            type: object
+    options:
+      operationId: optionsEvents
+      x-google-backend:
+        address: https://us-central1-localplus-api.cloudfunctions.net/localplus-api-events
+      responses:
+        '200':
+          description: Success
+  /api/events/all:
+    get:
+      operationId: getAllEvents
+      x-google-backend:
+        address: https://us-central1-localplus-api.cloudfunctions.net/localplus-api-events-all
+      responses:
+        '200':
+          description: Success
+          schema:
+            type: object
+    patch:
+      operationId: patchAllEvents
+      x-google-backend:
+        address: https://us-central1-localplus-api.cloudfunctions.net/localplus-api-events-all
+      responses:
+        '200':
+          description: Success
+          schema:
+            type: object
+    options:
+      operationId: optionsAllEvents
+      x-google-backend:
+        address: https://us-central1-localplus-api.cloudfunctions.net/localplus-api-events-all
+      responses:
+        '200':
+          description: Success

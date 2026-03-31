@@ -1,0 +1,7 @@
+createTime: '2025-11-30T09:51:31.472521382Z'
+displayName: localplus-api-config-v2
+gatewayServiceAccount: projects/-/serviceAccounts/78479671652-compute@developer.gserviceaccount.com
+name: projects/78479671652/locations/global/apis/localplus-api/configs/localplus-api-config-v2
+serviceConfigId: localplus-api-config-v2-0jkcveu81ibjn
+state: ACTIVE
+updateTime: '2025-11-30T09:53:10.802813799Z'

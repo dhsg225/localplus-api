@@ -254,6 +254,8 @@ module.exports = async (req, res) => {
         .select(`
           id,
           title,
+          subtitle,
+          description,
           status,
           start_time,
           end_time,

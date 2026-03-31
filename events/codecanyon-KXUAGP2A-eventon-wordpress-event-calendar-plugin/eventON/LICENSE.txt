@@ -1,0 +1,51 @@
+EventON LICENSE.txt
+===================
+
+EventON Core Plugin & Addons
+Copyright (C) 2014-2025 Ashan Jay, AshanJay Designs LLC
+All Rights Reserved
+
+SPLIT LICENSE AGREEMENT
+=======================
+
+1. GPL LICENSED PORTION (PHP CODE)
+---------------------------------
+All PHP code that integrates with WordPress is licensed under:
+GPL v2 or later - https://www.gnu.org/licenses/gpl-2.0.html
+
+You MAY:
+- Use, modify, and redistribute the PHP code per GPL terms
+
+2. PROPRIETARY LICENSED PORTION (NON-CODE ASSETS)
+------------------------------------------------
+CSS, JavaScript, images, fonts, documentation, and branded assets:
+PROPRIETARY LICENSE - All Rights Reserved
+
+Permission granted SOLELY for personal use with a valid EventON license.
+
+YOU MAY NOT:
+- Redistribute, resell, sublicense, or publish these Assets
+- Include in plugin/theme bundles, marketplaces, or GPL download sites
+- Remove/modify copyright notices
+- Use "EventON" branding without valid license
+
+3. TRADEMARK
+------------
+"EventON" is a trademark of AshanJay Designs LLC.
+Unauthorized use prohibited.
+
+4. TERMS OF USE
+---------------
+- Single license = 1 website you own/manage
+- No official support/updates from resellers
+- Violation = license revocation + legal action
+
+5. CONTACT
+----------
+Commercial redistribution: info@myeventon.com
+
+6. DISCLAIMER
+------------
+PROVIDED "AS IS" WITHOUT WARRANTY. AshanJay Designs LLC NOT LIABLE FOR ANY DAMAGES.
+
+END OF LICENSE

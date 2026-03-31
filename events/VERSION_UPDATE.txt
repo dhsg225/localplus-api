@@ -1,0 +1,49 @@
+═══════════════════════════════════════════════════════════════════
+  VERSION UPDATE INSTRUCTIONS - LocalPlus Event Engine Plugin
+═══════════════════════════════════════════════════════════════════
+
+BEFORE UPLOADING: Update version number from 1.2.9.0 to 1.2.9.1
+
+───────────────────────────────────────────────────────────────────
+STEP 1: Open file
+───────────────────────────────────────────────────────────────────
+File: wordpress-plugin/localplus-event-engine.php
+
+───────────────────────────────────────────────────────────────────
+STEP 2: Update Version (2 places)
+───────────────────────────────────────────────────────────────────
+
+FIND LINE 6:
+  Version: 1.2.9.0
+
+CHANGE TO:
+  Version: 1.2.9.1
+
+───────────────────────────────────────────────────────────────────
+
+FIND LINE 24:
+  define('LOCALPLUS_EVENTS_VERSION', '1.2.9.0');
+
+CHANGE TO:
+  define('LOCALPLUS_EVENTS_VERSION', '1.2.9.1');
+
+───────────────────────────────────────────────────────────────────
+QUICK METHOD: Find & Replace
+───────────────────────────────────────────────────────────────────
+
+In file: localplus-event-engine.php
+
+Find:    1.2.9.0
+Replace: 1.2.9.1
+Replace All: Yes (should find 2 occurrences)
+
+───────────────────────────────────────────────────────────────────
+VERIFY
+───────────────────────────────────────────────────────────────────
+
+After updating, verify:
+✓ Line 6 shows: Version: 1.2.9.1
+✓ Line 24 shows: define('LOCALPLUS_EVENTS_VERSION', '1.2.9.1');
+
+═══════════════════════════════════════════════════════════════════
+

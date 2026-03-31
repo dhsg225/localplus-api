@@ -1,0 +1,28 @@
+swagger: '2.0'
+info:
+  title: LocalPlus API
+  description: LocalPlus API Gateway
+  version: 1.0.0
+host: api.localplus.city
+schemes:
+  - https
+produces:
+  - application/json
+paths:
+  /api/events:
+    get:
+      operationId: getEvents
+      x-google-backend:
+        address: https://us-central1-localplus-api.cloudfunctions.net/localplus-api-events
+      responses:
+        '200':
+          description: Success
+          schema:
+            type: object
+    options:
+      operationId: optionsEvents
+      x-google-backend:
+        address: https://us-central1-localplus-api.cloudfunctions.net/localplus-api-events
+      responses:
+        '200':
+          description: Success

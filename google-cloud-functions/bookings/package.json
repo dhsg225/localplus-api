@@ -1,0 +1,12 @@
+{
+  "name": "localplus-api-bookings",
+  "version": "1.0.0",
+  "description": "Google Cloud Function for LocalPlus API - bookings",
+  "main": "index.js",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.86.0"
+  },
+  "engines": {
+    "node": "20"
+  }
+}

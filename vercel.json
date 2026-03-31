@@ -6,10 +6,6 @@
       "use": "@vercel/node"
     },
     {
-      "src": "auth/register/route.js",
-      "use": "@vercel/node"
-    },
-    {
       "src": "events/route.js",
       "use": "@vercel/node"
     },
@@ -30,11 +26,7 @@
       "use": "@vercel/node"
     },
     {
-      "src": "locations/route.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "categories/route.js",
+      "src": "metadata/route.js",
       "use": "@vercel/node"
     },
     {
@@ -52,16 +44,55 @@
     {
       "src": "places.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "restaurants/ingest.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "businesses/ingest.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "data-ingest/route.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-user-token, x-supabase-token, x-original-authorization"
+        }
+      ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/restaurants/ingest",
+      "destination": "/restaurants/ingest.js"
+    },
+    {
+      "source": "/api/ingest/businesses",
+      "destination": "/businesses/ingest.js"
+    },
     {
       "source": "/api/auth",
       "destination": "/auth/route.js"
     },
     {
       "source": "/api/auth/register",
-      "destination": "/auth/register/route.js"
+      "destination": "/auth/route.js"
     },
     {
       "source": "/api/events",
@@ -85,7 +116,7 @@
     },
     {
       "source": "/api/locations",
-      "destination": "/locations/route.js"
+      "destination": "/metadata/route.js?type=locations"
     },
     {
       "source": "/api/calendars",
@@ -93,7 +124,7 @@
     },
     {
       "source": "/api/categories",
-      "destination": "/categories/route.js"
+      "destination": "/metadata/route.js?type=categories"
     },
     {
       "source": "/api/media",
@@ -110,6 +141,10 @@
     {
       "source": "/api/places",
       "destination": "/places.js"
+    },
+    {
+      "source": "/api/data-ingest",
+      "destination": "/data-ingest/route.js"
     }
   ]
 }

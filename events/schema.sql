@@ -49,11 +49,117 @@ CREATE TABLE IF NOT EXISTS events (
   end_time TIMESTAMPTZ NOT NULL,
   location VARCHAR(255),
   max_participants INTEGER,
+  -- [2025-11-28 23:59] - Optional calendar grouping and tags for discovery
+  calendar_id UUID,
+  tags TEXT[] DEFAULT '{}',
+  -- [2025-11-29 00:10] - EventON-inspired structural fields (renamed for LocalPlus)
+  external_event_key TEXT,           -- Source system event identifier
+  theme_color_hex TEXT,              -- Preferred UI color for cards
+  timezone_id TEXT,                  -- e.g. Asia/Bangkok
+  hide_end_time_flag BOOLEAN DEFAULT false,
+  is_year_round BOOLEAN DEFAULT false,
+  is_recurring BOOLEAN DEFAULT false,
+  recurrence_interval TEXT,          -- daily | weekly | monthly | custom
+  recurrence_count INTEGER,
+  recurrence_pattern JSONB,          -- JSON describing advanced repeat rules
+  venue_area TEXT,                   -- Short area/quarter label
+  venue_latitude DOUBLE PRECISION,
+  venue_longitude DOUBLE PRECISION,
+  venue_map_url TEXT,
+  subtitle TEXT,
+  hero_image_url TEXT,
+  learn_more_url TEXT,
+  external_source_url TEXT,
+  primary_type_id UUID REFERENCES event_types(id),
+  secondary_type_id UUID REFERENCES event_types(id),
   metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT valid_time_range CHECK (end_time > start_time)
 );
+
+-- Event calendars - logical groupings (e.g. city calendars, hotel calendars)
+CREATE TABLE IF NOT EXISTS event_calendars (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Event types - admin-managed catalog of event types
+CREATE TABLE IF NOT EXISTS event_types (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT UNIQUE NOT NULL,
+  label TEXT NOT NULL,
+  description TEXT,
+  color TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Link events to calendars and extended structure if present
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS calendar_id UUID;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS external_event_key TEXT;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS theme_color_hex TEXT;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS timezone_id TEXT;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS hide_end_time_flag BOOLEAN DEFAULT false;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS is_year_round BOOLEAN DEFAULT false;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT false;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS recurrence_interval TEXT;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS recurrence_count INTEGER;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS recurrence_pattern JSONB;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS venue_area TEXT;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS venue_latitude DOUBLE PRECISION;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS venue_longitude DOUBLE PRECISION;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS venue_map_url TEXT;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS subtitle TEXT;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS hero_image_url TEXT;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS learn_more_url TEXT;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS external_source_url TEXT;
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS primary_type_id UUID REFERENCES event_types(id);
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS secondary_type_id UUID REFERENCES event_types(id);
 
 -- Event participants table - Track who is attending events
 CREATE TABLE IF NOT EXISTS event_participants (
@@ -90,6 +196,10 @@ CREATE INDEX IF NOT EXISTS idx_events_business_id ON events(business_id);
 CREATE INDEX IF NOT EXISTS idx_events_created_by ON events(created_by);
 CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
 CREATE INDEX IF NOT EXISTS idx_events_start_time ON events(start_time);
+CREATE INDEX IF NOT EXISTS idx_events_calendar_id ON events(calendar_id);
+CREATE INDEX IF NOT EXISTS idx_events_tags_gin ON events USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_events_primary_type_id ON events(primary_type_id);
+CREATE INDEX IF NOT EXISTS idx_events_secondary_type_id ON events(secondary_type_id);
 CREATE INDEX IF NOT EXISTS idx_event_participants_event_id ON event_participants(event_id);
 CREATE INDEX IF NOT EXISTS idx_event_participants_user_id ON event_participants(user_id);
 CREATE INDEX IF NOT EXISTS idx_event_permissions_event_id ON event_permissions(event_id);
@@ -102,19 +212,21 @@ ALTER TABLE event_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE event_permissions ENABLE ROW LEVEL SECURITY;
 
 -- Events RLS Policies
--- Users can view published events or events they have permissions for
+-- [2025-11-28] - Simplified to avoid recursion between events and event_permissions
+-- Users can view published events, events they created, or events for their businesses
 CREATE POLICY "Users can view published events"
   ON events FOR SELECT
-  USING (status = 'published' OR 
-         EXISTS (
-           SELECT 1 FROM event_permissions 
-           WHERE event_permissions.event_id = events.id 
-           AND (event_permissions.user_id = auth.uid() OR 
-                event_permissions.business_id IN (
-                  SELECT business_id FROM partners WHERE user_id = auth.uid() AND is_active = true
-                ))
-         ) OR
-         created_by = auth.uid());
+  USING (
+    status = 'published'
+    OR created_by = auth.uid()
+    OR EXISTS (
+      SELECT 1
+      FROM partners
+      WHERE partners.business_id = events.business_id
+        AND partners.user_id = auth.uid()
+        AND partners.is_active = true
+    )
+  );
 
 -- Users can create events if they're linked to a business
 CREATE POLICY "Users can create events for their businesses"
@@ -129,17 +241,17 @@ CREATE POLICY "Users can create events for their businesses"
     created_by = auth.uid()
   );
 
--- Users can update events they own or have editor permissions
+-- Users can update events they own or events for their businesses
 CREATE POLICY "Users can update events they own or have editor access"
   ON events FOR UPDATE
   USING (
-    created_by = auth.uid() OR
-    EXISTS (
-      SELECT 1 FROM event_permissions 
-      WHERE event_permissions.event_id = events.id 
-      AND event_permissions.user_id = auth.uid() 
-      AND event_permissions.role IN ('owner', 'editor')
-      AND (event_permissions.expires_at IS NULL OR event_permissions.expires_at > NOW())
+    created_by = auth.uid()
+    OR EXISTS (
+      SELECT 1
+      FROM partners
+      WHERE partners.business_id = events.business_id
+        AND partners.user_id = auth.uid()
+        AND partners.is_active = true
     )
   );
 

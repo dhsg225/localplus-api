@@ -1,0 +1,13 @@
+{
+  "name": "localplus-api-locations",
+  "version": "1.0.0",
+  "description": "LocalPlus Locations API - Google Cloud Function",
+  "main": "index.js",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
+

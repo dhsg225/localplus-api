@@ -1,0 +1,361 @@
+swagger: '2.0'
+info:
+  title: LocalPlus API Gateway
+  description: API Gateway for LocalPlus API endpoints
+  version: 1.0.0
+host: api.localplus.city
+schemes:
+  - https
+produces:
+  - application/json
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: key
+    in: query
+paths:
+  /api/auth:
+    get:
+      operationId: getAuth
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-auth
+      responses:
+        '200': { description: Success }
+    post:
+      operationId: postAuth
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-auth
+      responses:
+        '200': { description: Success }
+    delete:
+      operationId: deleteAuth
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-auth
+      responses:
+        '200': { description: Success }
+    options:
+      operationId: optionsAuth
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-auth
+      responses:
+        '200': { description: Success }
+
+  /api/bookings:
+    get:
+      operationId: getBookings
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-bookings
+      responses:
+        '200': { description: Success }
+    post:
+      operationId: postBookings
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-bookings
+      responses:
+        '200': { description: Success }
+    options:
+      operationId: optionsBookings
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-bookings
+      responses:
+        '200': { description: Success }
+
+  /api/bookings/{id}:
+    get:
+      operationId: getBookingById
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-bookings-id
+      responses:
+        '200': { description: Success }
+    put:
+      operationId: putBookingById
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-bookings-id
+      responses:
+        '200': { description: Success }
+    options:
+      operationId: optionsBookingById
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-bookings-id
+      responses:
+        '200': { description: Success }
+
+  /api/bookings/{id}/confirm:
+    put:
+      operationId: confirmBooking
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-bookings-id?action=confirm
+      responses:
+        '200': { description: Success }
+    options:
+      operationId: optionsConfirmBooking
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-bookings-id
+      responses:
+        '200': { description: Success }
+
+  /api/bookings/{id}/cancel:
+    put:
+      operationId: cancelBooking
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-bookings-id?action=cancel
+      responses:
+        '200': { description: Success }
+    options:
+      operationId: optionsCancelBooking
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-bookings-id
+      responses:
+        '200': { description: Success }
+
+  /api/restaurants:
+    get:
+      operationId: getRestaurants
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-restaurants
+      responses:
+        '200': { description: Success }
+    post:
+      operationId: postRestaurants
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-restaurants
+      responses:
+        '200': { description: Success }
+    options:
+      operationId: optionsRestaurants
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-restaurants
+      responses:
+        '200': { description: Success }
+
+  /api/restaurants/search:
+    get:
+      operationId: searchRestaurants
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-restaurants-search
+      responses:
+        '200': { description: Success }
+    options:
+      operationId: optionsSearchRestaurants
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-restaurants-search
+      responses:
+        '200': { description: Success }
+
+  /api/businesses:
+    get:
+      operationId: getBusinesses
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-businesses
+      responses:
+        '200': { description: Success }
+    post:
+      operationId: postBusinesses
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-businesses
+      responses:
+        '200': { description: Success }
+    options:
+      operationId: optionsBusinesses
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-businesses
+      responses:
+        '200': { description: Success }
+
+  /api/notifications:
+    get:
+      operationId: getNotifications
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-notifications
+      responses:
+        '200': { description: Success }
+    post:
+      operationId: postNotifications
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-notifications
+      responses:
+        '200': { description: Success }
+    options:
+      operationId: optionsNotifications
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-notifications
+      responses:
+        '200': { description: Success }
+
+  /api/events:
+    get:
+      operationId: getEvents
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events
+      responses:
+        '200': { description: Success }
+    post:
+      operationId: postEvents
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events
+      responses:
+        '200': { description: Success }
+    options:
+      operationId: optionsEvents
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events
+      responses:
+        '200': { description: Success }
+
+  /api/events/all:
+    get:
+      operationId: getAllEvents
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events-all
+      responses:
+        '200': { description: Success }
+    patch:
+      operationId: patchAllEvents
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events-all
+      responses:
+        '200': { description: Success }
+    options:
+      operationId: optionsAllEvents
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events-all
+      responses:
+        '200': { description: Success }
+
+  /api/events/{id}:
+    get:
+      operationId: getEventById
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events-id
+      responses:
+        '200': { description: Success }
+    put:
+      operationId: putEventById
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events-id
+      responses:
+        '200': { description: Success }
+    delete:
+      operationId: deleteEventById
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events-id
+      responses:
+        '200': { description: Success }
+    options:
+      operationId: optionsEventById
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events-id
+      responses:
+        '200': { description: Success }
+
+  /api/events/{id}/participants:
+    get:
+      operationId: getEventParticipants
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events-participants
+      responses:
+        '200': { description: Success }
+    post:
+      operationId: postEventParticipants
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events-participants
+      responses:
+        '200': { description: Success }
+    put:
+      operationId: putEventParticipants
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events-participants
+      responses:
+        '200': { description: Success }
+    delete:
+      operationId: deleteEventParticipants
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events-participants
+      responses:
+        '200': { description: Success }
+    options:
+      operationId: optionsEventParticipants
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://us-central1-marketing-saas-ai.cloudfunctions.net/localplus-api-events-participants
+      responses:
+        '200': { description: Success }

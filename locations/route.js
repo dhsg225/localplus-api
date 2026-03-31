@@ -22,13 +22,13 @@ module.exports = async (req, res) => {
   try {
     // [2025-12-01] - Use service role client for GET requests to bypass RLS
     // Locations should be viewable by all authenticated users, so we use service role
-    const supabaseAdmin = supabaseServiceRoleKey 
+    const supabaseAdmin = supabaseServiceRoleKey
       ? createClient(supabaseUrl, supabaseServiceRoleKey, {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false
-          }
-        })
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false
+        }
+      })
       : null;
 
     // Regular client for POST (needs user context)
@@ -62,29 +62,29 @@ module.exports = async (req, res) => {
       // [2025-12-01] - List all locations
       // [2025-01-XX] - Support search parameter for autocomplete
       const { search } = req.query;
-      
+
       // Use service role if available (bypasses RLS), otherwise use anon key with session
       const client = supabaseAdmin || supabase;
-      
+
       // Log for debugging
       if (!supabaseAdmin) {
         console.log('[Locations API] Using anon key with user session for RLS');
       } else {
         console.log('[Locations API] Using service role key (bypassing RLS)');
       }
-      
+
       let query = client
         .from('locations')
         .select('*');
-      
+
       // If search provided, filter by name (case-insensitive)
       if (search && search.trim()) {
         const searchTerm = `%${search.trim()}%`;
         query = query.ilike('name', searchTerm);
       }
-      
+
       query = query.order('name', { ascending: true }).limit(50); // Limit results for autocomplete
-      
+
       const { data, error } = await query;
 
       if (error) {
@@ -107,7 +107,7 @@ module.exports = async (req, res) => {
 
     if (req.method === 'POST') {
       // Create new location
-      const { name, description, address, latitude, longitude, map_url, image_url } = req.body;
+      const { name, description, address, latitude, longitude, map_url, image_url, facebook_url } = req.body;
 
       if (!name || !name.trim()) {
         return res.status(400).json({
@@ -131,6 +131,7 @@ module.exports = async (req, res) => {
           longitude: longitude || null,
           map_url: map_url || null,
           image_url: image_url || null,
+          facebook_url: facebook_url || null,
           created_by: user?.id || null
         })
         .select()

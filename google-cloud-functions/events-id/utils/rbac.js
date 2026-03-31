@@ -1,0 +1,165 @@
+// [2025-01-XX] - Event Engine Phase 1: RBAC helper utilities for role-based access control
+const { createClient } = require('@supabase/supabase-js');
+
+const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.supabase.co';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impva25wcmFoaHFkaHZkaHptdXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NTI3MTAsImV4cCI6MjA2NTIyODcxMH0.YYkEkYFWgd_4-OtgG47xj6b5MX_fu7zNQxrW9ymR8Xk';
+
+/**
+ * Get authenticated user from Authorization header
+ * @param {string} authHeader - Authorization header value
+ * @returns {Promise<{user: object|null, error: string|null}>}
+ */
+async function getAuthenticatedUser(authHeader) {
+  if (!authHeader) {
+    return { user: null, error: 'Authorization header required' };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  
+  if (error || !user) {
+    return { user: null, error: 'Invalid or expired token' };
+  }
+
+  return { user, error: null };
+}
+
+/**
+ * Check if user has permission to access an event
+ * @param {object} supabase - Supabase client instance
+ * @param {string} userId - User ID
+ * @param {string} eventId - Event ID
+ * @param {string[]} requiredRoles - Required roles (e.g., ['owner', 'editor'])
+ * @returns {Promise<{hasAccess: boolean, role: string|null}>}
+ */
+async function checkEventPermission(supabase, userId, eventId, requiredRoles = []) {
+  // Check if user is the event creator
+  const { data: event } = await supabase
+    .from('events')
+    .select('created_by')
+    .eq('id', eventId)
+    .single();
+
+  if (event && event.created_by === userId) {
+    return { hasAccess: true, role: 'owner' };
+  }
+
+  // Check explicit permissions
+  // First check user-level permissions (not expired)
+  const now = new Date().toISOString();
+  const { data: userPermissions } = await supabase
+    .from('event_permissions')
+    .select('role')
+    .eq('event_id', eventId)
+    .eq('user_id', userId)
+    .or(`expires_at.is.null,expires_at.gt.${now}`);
+
+  if (userPermissions && userPermissions.length > 0) {
+    const userRole = userPermissions[0].role;
+    if (requiredRoles.length === 0 || requiredRoles.includes(userRole)) {
+      return { hasAccess: true, role: userRole };
+    }
+  }
+
+  // Check business-level permissions via partners table
+  const { data: userBusinesses } = await supabase
+    .from('partners')
+    .select('business_id')
+    .eq('user_id', userId)
+    .eq('is_active', true);
+
+  if (userBusinesses && userBusinesses.length > 0) {
+    const businessIds = userBusinesses.map(ub => ub.business_id);
+    const { data: businessPermissions } = await supabase
+      .from('event_permissions')
+      .select('role')
+      .eq('event_id', eventId)
+      .in('business_id', businessIds)
+      .or(`expires_at.is.null,expires_at.gt.${now}`);
+
+    if (businessPermissions && businessPermissions.length > 0) {
+      const businessRole = businessPermissions[0].role;
+      if (requiredRoles.length === 0 || requiredRoles.includes(businessRole)) {
+        return { hasAccess: true, role: businessRole };
+      }
+    }
+  }
+
+  // Check if event is published (public access for view-only)
+  if (requiredRoles.length === 0) {
+    const { data: publishedEvent } = await supabase
+      .from('events')
+      .select('status')
+      .eq('id', eventId)
+      .eq('status', 'published')
+      .single();
+
+    if (publishedEvent) {
+      return { hasAccess: true, role: 'viewer' };
+    }
+  }
+
+  return { hasAccess: false, role: null };
+}
+
+/**
+ * Check if user can perform action on event (wrapper for checkEventPermission)
+ * @param {object} supabase - Supabase client instance
+ * @param {string} userId - User ID
+ * @param {string} eventId - Event ID
+ * @param {string} action - Action type: 'view', 'edit', 'delete', 'manage_participants'
+ * @returns {Promise<boolean>}
+ */
+async function canPerformAction(supabase, userId, eventId, action) {
+  const roleMap = {
+    'view': [],
+    'edit': ['owner', 'editor'],
+    'delete': ['owner'],
+    'manage_participants': ['owner', 'editor']
+  };
+
+  const requiredRoles = roleMap[action] || [];
+  const { hasAccess } = await checkEventPermission(supabase, userId, eventId, requiredRoles);
+  return hasAccess;
+}
+
+/**
+ * Middleware function to verify authentication and authorization
+ * @param {object} req - Request object
+ * @param {string} eventId - Event ID (optional, from query or body)
+ * @param {string} action - Required action
+ * @returns {Promise<{authorized: boolean, user: object|null, error: string|null}>}
+ */
+async function authorizeRequest(req, eventId = null, action = 'view') {
+  const authHeader = req.headers.authorization;
+  const { user, error: authError } = await getAuthenticatedUser(authHeader);
+
+  if (authError || !user) {
+    return { authorized: false, user: null, error: authError || 'Unauthorized' };
+  }
+
+  // If no eventId, just check authentication
+  if (!eventId) {
+    return { authorized: true, user, error: null };
+  }
+
+  // Check event-specific permissions
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const hasAccess = await canPerformAction(supabase, user.id, eventId, action);
+
+  if (!hasAccess) {
+    return { authorized: false, user, error: 'Insufficient permissions' };
+  }
+
+  return { authorized: true, user, error: null };
+}
+
+module.exports = {
+  getAuthenticatedUser,
+  checkEventPermission,
+  canPerformAction,
+  authorizeRequest
+};
+

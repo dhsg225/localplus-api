@@ -16,7 +16,7 @@ async function getSupabaseClient(authToken = null) {
       autoRefreshToken: false
     }
   });
-  
+
   if (authToken) {
     try {
       const { data: { user }, error } = await client.auth.getUser(authToken);
@@ -30,7 +30,7 @@ async function getSupabaseClient(authToken = null) {
       console.warn('[Superuser API] Error setting auth session:', err.message);
     }
   }
-  
+
   return client;
 }
 
@@ -101,7 +101,7 @@ module.exports = async (req, res) => {
   // [2025-01-XX] - Verify super admin OR events_superuser
   const userIsSuperAdmin = await isSuperAdmin(supabaseClient, user.id);
   const userIsEventsSuperuser = await isEventsSuperuser(supabaseClient, user.id);
-  
+
   if (!userIsSuperAdmin && !userIsEventsSuperuser) {
     return res.status(403).json({ error: 'Super admin access required' });
   }
@@ -113,7 +113,7 @@ module.exports = async (req, res) => {
         // Pagination
         limit = '50',
         offset = '0',
-        
+
         // Filters
         city,
         businessId,
@@ -126,7 +126,7 @@ module.exports = async (req, res) => {
         onlyUpcoming,
         onlyScraped,
         needsReview,
-        
+
         // Sorting
         sortBy = 'start_time', // 'start_time', 'created_at', 'title'
         sortOrder = 'asc' // 'asc', 'desc'
@@ -138,6 +138,8 @@ module.exports = async (req, res) => {
         .select(`
           id,
           title,
+          subtitle,
+          description,
           status,
           start_time,
           end_time,
@@ -147,7 +149,8 @@ module.exports = async (req, res) => {
           created_at,
           updated_at,
           location,
-          venue_area
+          venue_area,
+          hero_image_url
         `)
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
@@ -263,7 +266,7 @@ module.exports = async (req, res) => {
       }
 
       // Determine changed fields
-      const changedFields = Object.keys(eventUpdates).filter(key => 
+      const changedFields = Object.keys(eventUpdates).filter(key =>
         JSON.stringify(currentEvent[key]) !== JSON.stringify(updatedEvent[key])
       );
 

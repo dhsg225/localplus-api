@@ -1,0 +1,210 @@
+/**
+ * Frontend Styles for LocalPlus Events
+ * [2026-02-09] Premium "Discreet" Design (Unified v1.2.25)
+ * 
+ * This design implements the clean, left-aligned discreet Look 
+ * as requested. Simplified icons, no large badges, unified everywhere.
+ * 
+ * @package LocalPlus_Event_Engine
+ */
+
+/* ==========================================================================
+   GLOBAL LIGHTBOX SYSTEM (FORCED DISCREET LOOK)
+   ========================================================================== */
+
+.localplus-event-modal {
+    display: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background-color: rgba(0, 0, 0, 0.85) !important;
+    backdrop-filter: blur(8px);
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    z-index: 9999999 !important;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.localplus-event-modal.show {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.localplus-modal-wrapper {
+    display: table !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.localplus-modal-wrapper-inner {
+    display: table-cell !important;
+    vertical-align: middle !important;
+    padding: 20px !important;
+}
+
+.localplus-modal-container {
+    max-width: 900px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    background: #ffffff !important;
+    border-radius: 12px !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4) !important;
+    overflow: hidden !important;
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    max-height: 90vh !important;
+}
+
+/* === Close Button (Discreet Blue Circle) === */
+.localplus-modal-close {
+    position: absolute !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 36px !important;
+    height: 36px !important;
+    background: #0073aa !important;
+    border: 2px solid #ffffff !important;
+    border-radius: 50% !important;
+    color: #ffffff !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 100 !important;
+    transition: all 0.2s ease !important;
+}
+
+.localplus-modal-close:hover {
+    transform: scale(1.1) !important;
+}
+
+.localplus-modal-close svg {
+    width: 20px !important;
+    height: 20px !important;
+    stroke-width: 2.5 !important;
+}
+
+/* === Header (Clean Left-Aligned Discreet Look) === */
+.localplus-modal-header {
+    background: #0073aa !important;
+    color: #ffffff !important;
+    padding: 40px !important;
+    text-align: left !important;
+    display: block !important;
+    flex-shrink: 0 !important;
+}
+
+.localplus-modal-date-badge {
+    display: inline-block !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    padding: 6px 14px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    margin-bottom: 20px !important;
+}
+
+.localplus-modal-title {
+    font-size: 32px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    margin: 0 0 10px 0 !important;
+    color: #ffffff !important;
+}
+
+.localplus-modal-subtitle {
+    font-size: 15px !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    margin: 0 0 25px 0 !important;
+    font-weight: 400 !important;
+}
+
+/* === Info Rows (Discreet List Style) === */
+.localplus-modal-header-info {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+}
+
+.localplus-modal-header-info-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+}
+
+.localplus-modal-header-info-item svg {
+    width: 18px !important;
+    height: 18px !important;
+    opacity: 0.9 !important;
+    flex-shrink: 0 !important;
+}
+
+.localplus-modal-header-info-item span {
+    color: #ffffff !important;
+}
+
+/* Body Content */
+.localplus-modal-scrollable {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    background: #ffffff !important;
+}
+
+.localplus-modal-image-wrapper {
+    width: 100% !important;
+    height: 400px !important;
+    background: #f0f0f0 !important;
+}
+
+.localplus-modal-image {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+}
+
+.localplus-modal-body {
+    padding: 40px !important;
+}
+
+.localplus-modal-description {
+    font-size: 1.15em !important;
+    line-height: 1.7 !important;
+    color: #444 !important;
+    white-space: pre-wrap !important;
+}
+
+/* Body scroll lock */
+body.localplus-modal-open {
+    overflow: hidden !important;
+}
+
+@media (max-width: 600px) {
+    .localplus-modal-container {
+        height: 100vh !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+    }
+
+    .localplus-modal-header {
+        padding: 30px !important;
+    }
+
+    .localplus-modal-body {
+        padding: 30px !important;
+    }
+
+    .localplus-modal-image-wrapper {
+        height: 250px !important;
+    }
+}

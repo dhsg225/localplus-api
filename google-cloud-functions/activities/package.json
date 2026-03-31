@@ -1,0 +1,10 @@
+{
+  "name": "localplus-api-activities",
+  "version": "1.0.0",
+  "description": "Google Cloud Function for LocalPlus Activities API",
+  "main": "index.js",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.3"
+  }
+}
+

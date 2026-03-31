@@ -1,0 +1,12 @@
+{
+  "name": "localplus-api-events-id",
+  "version": "1.0.0",
+  "description": "Google Cloud Function for LocalPlus API - events-id",
+  "main": "index.js",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.86.0"
+  },
+  "engines": {
+    "node": "20"
+  }
+}

@@ -1,5 +1,6 @@
 // [2024-09-26] - Authentication API for all LocalPlus apps
 // [2025-10-01] - Converted to Vercel serverless function format
+// [2026-02-01] - Merged registration logic to stay under Vercel Hobby limits
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://joknprahhqdhvdhzmuwl.supabase.co';
@@ -17,11 +18,119 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  // Determine if this is a registration request
+  // (We'll route /api/auth/register to this file in vercel.json)
+  const isRegister = req.url.includes('/register');
+
+  // POST /api/auth/register - User registration
+  if (isRegister && req.method === 'POST') {
+    try {
+      const { email, password, business_type, business_name } = req.body;
+
+      // Validation
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
+
+      if (password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+      }
+
+      if (!business_type) {
+        return res.status(400).json({ error: 'Business type is required' });
+      }
+
+      if (!business_name || !business_name.trim()) {
+        return res.status(400).json({ error: 'Business name is required' });
+      }
+
+      // Step 1: Create user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            business_type,
+            business_name
+          }
+        }
+      });
+
+      if (authError) {
+        console.error('[Register] Auth error:', authError);
+        return res.status(400).json({ error: authError.message });
+      }
+
+      if (!authData.user) {
+        return res.status(500).json({ error: 'Failed to create user account' });
+      }
+
+      const userId = authData.user.id;
+
+      // Step 2: Get business type ID
+      const { data: businessTypeData, error: typeError } = await supabase
+        .from('business_types')
+        .select('id')
+        .eq('key', business_type)
+        .eq('is_active', true)
+        .single();
+
+      if (typeError || !businessTypeData) {
+        console.warn(`[Register] Business type '${business_type}' not found`);
+      }
+
+      // Step 3: Create business record
+      const businessData = {
+        name: business_name.trim(),
+        business_type_id: businessTypeData?.id || null,
+        created_by: userId,
+        is_active: true
+      };
+
+      const { data: businessRecord, error: businessError } = await supabase
+        .from('businesses')
+        .insert([businessData])
+        .select()
+        .single();
+
+      // Step 4: Create partner record
+      let partnerRecord = null;
+      if (businessRecord) {
+        const { data: partnerDataResult, error: partnerError } = await supabase
+          .from('partners')
+          .insert([{
+            user_id: userId,
+            business_id: businessRecord.id,
+            role: 'owner',
+            is_active: true,
+            accepted_at: new Date().toISOString(),
+            permissions: ['view_bookings', 'manage_bookings', 'view_analytics', 'manage_business']
+          }])
+          .select()
+          .single();
+
+        partnerRecord = partnerDataResult;
+      }
+
+      return res.status(200).json({
+        success: true,
+        user: authData.user,
+        session: authData.session,
+        business: businessRecord || null,
+        partner: partnerRecord || null
+      });
+
+    } catch (error) {
+      console.error('[Register] Registration error:', error);
+      return res.status(500).json({ error: 'Internal server error during registration' });
+    }
+  }
+
   // POST /api/auth - User login
-  if (req.method === 'POST') {
+  if (!isRegister && req.method === 'POST') {
     try {
       const { email, password } = req.body;
-      
+
       if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required' });
       }
@@ -51,46 +160,33 @@ module.exports = async (req, res) => {
   if (req.method === 'GET') {
     try {
       const authHeader = req.headers.authorization;
-      
+
       if (!authHeader) {
         return res.status(401).json({ error: 'Authorization header required' });
       }
 
       const token = authHeader.replace('Bearer ', '');
-      
-      // [2025-01-XX] - Simplified token decoding (same as events route)
-      // Decode token directly instead of using supabase.auth.getUser()
+
       try {
-    const parts = token.split('.');
+        const parts = token.split('.');
         if (parts.length !== 3) {
-          console.error('[Auth] Invalid token format - parts:', parts.length);
           return res.status(401).json({ error: 'Invalid token format' });
         }
-        
-        // Decode base64url payload
+
         let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
         while (base64.length % 4) {
           base64 += '=';
         }
-        
-        console.log('[Auth] Decoding token, base64 length:', base64.length);
+
         const payloadStr = Buffer.from(base64, 'base64').toString();
-        console.log('[Auth] Decoded payload (first 100 chars):', payloadStr.substring(0, 100));
-        
         const payload = JSON.parse(payloadStr);
         const userId = payload.sub;
         const userEmail = payload.email || 'unknown@example.com';
-        
-        console.log('[Auth] Decoded user ID:', userId, 'email:', userEmail);
-        
-        // Validate UUID
+
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
-          console.error('[Auth] Invalid UUID:', userId);
           return res.status(401).json({ error: 'Invalid token: User ID is not a valid UUID' });
         }
-        
-        console.log('[Auth] ✅ Token decoded successfully, returning user');
-        // Return user object from decoded token
+
         return res.status(200).json({
           success: true,
           user: {
@@ -99,8 +195,6 @@ module.exports = async (req, res) => {
           }
         });
       } catch (decodeError) {
-        console.error('[Auth] Token decode error:', decodeError.message);
-        console.error('[Auth] Error stack:', decodeError.stack);
         return res.status(401).json({ error: `Invalid token: ${decodeError.message}` });
       }
 
@@ -113,14 +207,6 @@ module.exports = async (req, res) => {
   // DELETE /api/auth - User logout
   if (req.method === 'DELETE') {
     try {
-      const authHeader = req.headers.authorization;
-      
-      if (!authHeader) {
-        return res.status(401).json({ error: 'Authorization header required' });
-      }
-
-      const token = authHeader.replace('Bearer ', '');
-      
       const { error } = await supabase.auth.signOut();
 
       if (error) {
@@ -140,3 +226,4 @@ module.exports = async (req, res) => {
 
   return res.status(405).json({ error: 'Method not allowed' });
 };
+

@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -132,14 +132,16 @@ export default async function handler(req, res) {
           party_size,
           booking_date,
           booking_time,
-          special_requests
+          special_requests,
+          source = 'web_widget',
+          customer_device_token
         } = body;
 
         // Validate required fields
         if (!business_id || !customer_name || !customer_email || !customer_phone || !party_size || !booking_date || !booking_time) {
-          return res.status(400).json({ 
-            success: false, 
-            error: 'Missing required fields' 
+          return res.status(400).json({
+            success: false,
+            error: 'Missing required fields'
           });
         }
 
@@ -155,9 +157,9 @@ export default async function handler(req, res) {
         if (availabilityError) throw availabilityError;
 
         if (!isAvailable) {
-          return res.status(409).json({ 
-            success: false, 
-            error: 'Time slot not available' 
+          return res.status(409).json({
+            success: false,
+            error: 'Time slot not available'
           });
         }
 
@@ -175,7 +177,9 @@ export default async function handler(req, res) {
           booking_time,
           special_requests,
           confirmation_code: confirmationResult,
-          status: 'pending'
+          status: 'pending',
+          source,
+          customer_device_token
         };
 
         const { data: newBooking, error: createError } = await supabase
@@ -220,9 +224,9 @@ export default async function handler(req, res) {
     }
   } catch (error) {
     console.error('Booking API error:', error);
-    return res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Internal server error' 
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Internal server error'
     });
   }
 } 

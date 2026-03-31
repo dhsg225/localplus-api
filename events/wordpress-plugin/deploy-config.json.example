@@ -1,0 +1,15 @@
+{
+  "DEPLOY_METHOD": "ssh",
+  "WORDPRESS_SERVER": "user@your-server.com",
+  "WORDPRESS_PATH": "/var/www/html",
+  "PLUGIN_NAME": "localplus-event-engine",
+  "SSH_KEY": "~/.ssh/id_ed25519",
+  "FTP_HOST": "ftp.your-server.com",
+  "FTP_USER": "ftp_username",
+  "FTP_PASS": "ftp_password",
+  "FTP_PATH": "/wp-content/plugins",
+  "WP_URL": "https://your-wordpress-site.com",
+  "WP_USERNAME": "admin",
+  "WP_PASSWORD": "application_password"
+}
+
