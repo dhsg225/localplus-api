@@ -46,15 +46,7 @@
       "use": "@vercel/node"
     },
     {
-      "src": "restaurants/ingest.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "businesses/ingest.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "data-ingest/route.js",
+      "src": "ingestion/unified.js",
       "use": "@vercel/node"
     }
   ],
@@ -80,11 +72,11 @@
   "rewrites": [
     {
       "source": "/api/restaurants/ingest",
-      "destination": "/restaurants/ingest.js"
+      "destination": "/ingestion/unified.js"
     },
     {
       "source": "/api/ingest/businesses",
-      "destination": "/businesses/ingest.js"
+      "destination": "/ingestion/unified.js"
     },
     {
       "source": "/api/auth",
@@ -144,7 +136,7 @@
     },
     {
       "source": "/api/data-ingest",
-      "destination": "/data-ingest/route.js"
+      "destination": "/ingestion/unified.js"
     }
   ]
 }
