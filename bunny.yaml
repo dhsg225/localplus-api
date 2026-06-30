@@ -1,0 +1,54 @@
+# LocalPlus API — Bunny Magic Container Configuration
+# Deploy via: bash scripts/deploy-to-bkk.sh
+# Mirrors the AnswerEngine deployment (same Bangkok PoP, same pattern).
+
+name: localplus-api
+version: "1"
+
+container:
+  image: ${REGISTRY_IMAGE}          # Set by deploy-to-bkk.sh (e.g. registry.bunny.net/localplus-api:latest)
+  port: 8080
+  replicas: 1
+
+  # ── Region: Bangkok PoP (co-located with AnswerEngine + Supabase reads) ───────
+  region: asia-se-bangkok
+
+  resources:
+    memory: 512Mi                   # API is heavier than AE (supabase client + ingestion)
+    cpu: 500m                       # 0.5 vCPU — scales on demand
+
+  # ── Health Probe ──────────────────────────────────────────────────────────
+  health_check:
+    path: /health
+    interval: 15s
+    timeout: 5s
+    healthy_threshold: 1
+    unhealthy_threshold: 3
+
+  # ── Environment Variables ─────────────────────────────────────────────────
+  # SECURITY: all *_KEY values must be set via Bunny Dashboard → Container →
+  # Environment Variables — NEVER committed here. Rotate the keys that were
+  # previously hardcoded/committed (service-role, OpenRouter, Google Places,
+  # BunnyCDN) BEFORE first deploy — see ../localplus-architecture-audit/09-security-review.md
+  env:
+    NODE_ENV: production
+    PORT: "8080"
+    APP_VERSION: v1-container
+    # CORS_ORIGINS: "https://partners.localplus.city,https://superapp.localplus.city"  # lock down post-cutover
+    SUPABASE_URL: ${SUPABASE_URL}
+    SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+    # SUPABASE_SERVICE_ROLE_KEY  — set in Bunny Dashboard (privileged; rotate first)
+    # OPENROUTER_API_KEY         — set in Bunny Dashboard (AI ingestion)
+    # GOOGLE_PLACES_API_KEY      — set in Bunny Dashboard (currently hardcoded in places.js — move to env + rotate)
+    # BUNNYCDN_*                 — set in Bunny Dashboard (media uploads)
+    # SUPABASE_JWT_SECRET        — set in Bunny Dashboard (needed once JWT verification middleware lands)
+
+  # ── Scaling ───────────────────────────────────────────────────────────────
+  scaling:
+    min_replicas: 1
+    max_replicas: 3
+    scale_on: requests
+    target_rps: 50
+
+  # ── Pull Policy ───────────────────────────────────────────────────────────
+  image_pull_policy: Always
