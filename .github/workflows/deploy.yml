@@ -1,12 +1,13 @@
 # Deploy LocalPlus API → Bunny Magic Container (Bangkok)
-# Build + push the image, then roll the container to the new tag via Bunny's
-# official container-update-image action (the blessed automated redeploy path).
+# Build + push the image to GHCR, then roll the container to the new tag via
+# Bunny's official container-update-image action.
 #
 # Required repo secrets (Settings → Secrets and variables → Actions):
-#   BUNNY_REGISTRY_USER / BUNNY_REGISTRY_PASSWORD   registry.bunny.net push creds
-#   BUNNY_API_KEY                                   Bunny account API key
-#   BUNNY_APP_ID                                    Magic Containers application id
-# And set the container name below to match the container name in your app config.
+#   BUNNY_API_KEY    Bunny account API key
+#   BUNNY_APP_ID     Magic Containers application id (from the app's page in dash.bunny.net)
+# (The GHCR push uses the built-in GITHUB_TOKEN — no registry user/password secret needed.)
+# Bunny pulls the new image using the GHCR registry integration you configured
+# in dash.bunny.net → Magic Containers → Image Registries.
 
 name: deploy-api-bkk
 
@@ -18,8 +19,12 @@ on:
       - '**/*.md'
       - 'localplus-architecture-audit/**'
 
+permissions:
+  contents: read
+  packages: write
+
 env:
-  IMAGE: registry.bunny.net/localplus-api/api
+  IMAGE: ghcr.io/dhsg225/localplus-api
   CONTAINER_NAME: localplus-api   # must match the container name inside the Bunny app
 
 jobs:
@@ -28,12 +33,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log in to Bunny container registry
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: registry.bunny.net
-          username: ${{ secrets.BUNNY_REGISTRY_USER }}
-          password: ${{ secrets.BUNNY_REGISTRY_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build & push (linux/amd64)
         uses: docker/build-push-action@v6
