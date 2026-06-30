@@ -1,1 +1,7 @@
 .vercel
+
+# Secrets / local env — never commit
+.env.prod
+.env.local
+.env.*.local
+.tmp-env-loader.mjs
