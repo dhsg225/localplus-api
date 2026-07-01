@@ -100,8 +100,8 @@ fi
 
 REDEPLOYED=0
 if [[ -n "$APP_ID" ]]; then
-  DEPLOY_PATH="${MC_DEPLOY_PATH:-/apps/{id}/deploy}"
-  DEPLOY_URL="${MC_API}${DEPLOY_PATH/\{id\}/$APP_ID}"
+  DEPLOY_PATH=$(printf '%s' "${MC_DEPLOY_PATH:-/apps/{id}/deploy}" | sed "s|{id}|${APP_ID}|g")
+  DEPLOY_URL="${MC_API}${DEPLOY_PATH}"
   echo "  ▶ POST $DEPLOY_URL"
   if curl -fsSL -X POST -H "$AUTH_HDR" -H 'Content-Type: application/json' "$DEPLOY_URL" >/dev/null 2>&1; then
     echo "  ✓ Rolling redeploy triggered (app $APP_ID, pulls $IMAGE_TAG)"
